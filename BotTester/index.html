@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bot Tester - Advanced Bot Evaluation System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <canvas id="bgCanvas"></canvas>
+      <div class="header-content">
+        <div class="logo-section">
+          <div class="logo-icon">
+            <canvas id="iconCanvas" width="36" height="36"></canvas>
+          </div>
+          <h1>Bot Tester</h1>
+          <span class="subtitle">Advanced Bot Evaluation System</span>
+        </div>
+        <div class="header-actions">
+          <button id="settingsBtn" class="icon-btn" title="Settings">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m3.08 3.08l4.24 4.24M1 12h6m6 0h6m-1.78-7.78l-4.24 4.24m-3.08 3.08l-4.24 4.24"></path>
+            </svg>
+          </button>
+          <button id="historyBtn" class="icon-btn" title="History">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="main-container">
+      <!-- Settings Panel (Hidden by default) -->
+      <aside id="settingsPanel" class="settings-panel hidden">
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <button class="close-btn" onclick="toggleSettings()">✕</button>
+        </div>
+        <div class="settings-content">
+          <div class="setting-group">
+            <label for="endpointInput">LLM Endpoint</label>
+            <input type="text" id="endpointInput" placeholder="http://localhost:11434" class="input-field">
+            <small class="help-text">URL of your LLM service (e.g., Ollama)</small>
+          </div>
+          <div class="setting-group">
+            <label for="model1Select">Bot 1 — Query Generator</label>
+            <select id="model1Select" class="input-field">
+              <option value="">Select a model...</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label for="model2Select">Bot 2 — Responder</label>
+            <select id="model2Select" class="input-field">
+              <option value="">Select a model...</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label for="model3Select">Bot 3 — Evaluator</label>
+            <select id="model3Select" class="input-field">
+              <option value="">Select a model...</option>
+            </select>
+          </div>
+          <div class="settings-actions">
+            <button id="loadModelsBtn" class="btn btn-secondary">Load Models</button>
+            <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- History Panel (Hidden by default) -->
+      <aside id="historyPanel" class="history-panel hidden">
+        <div class="history-header">
+          <h2>Test History</h2>
+          <button class="close-btn" onclick="toggleHistory()">✕</button>
+        </div>
+        <div class="history-content" id="historyContent">
+          <p class="empty-state">No test history yet</p>
+        </div>
+        <div class="history-actions">
+          <div class="export-btns">
+            <button onclick="exportAsJest()"   class="btn btn-secondary btn-export" title="Export as a Jest test file that re-runs each query">Jest .test.js</button>
+            <button onclick="exportAsJunit()"  class="btn btn-secondary btn-export" title="Export current results as JUnit XML for CI dashboards">JUnit XML</button>
+          </div>
+          <button id="clearHistoryBtn" class="btn btn-secondary">Clear</button>
+        </div>
+      </aside>
+
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- Test Input Section -->
+        <section class="input-section" id="inputSection">
+          <div class="input-header">
+            <span class="input-title">Query Input</span>
+            <button id="collapseBtn" class="icon-btn" title="Collapse input panel">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="18 15 12 9 6 15"></polyline>
+              </svg>
+            </button>
+          </div>
+          <div class="input-body">
+            <textarea id="queryInput" class="textarea-field" placeholder="Ask a question… Enter to run, Shift+Enter for new line" rows="3"></textarea>
+            <button id="runTestBtn" class="btn btn-primary btn-large">Run Test</button>
+          </div>
+          <div id="loadingSpinner" class="loading-spinner hidden">
+            <div class="spinner"></div>
+            <span id="loadingMessage">Running test...</span>
+          </div>
+          <div id="errorMessage" class="error-message hidden"></div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section">
+          <div class="results-grid">
+            <!-- Left Box: Bot 1 Query -->
+            <div class="result-box bot1-box">
+              <div class="box-header">
+                <h3>Bot 1 Query</h3>
+                <div class="box-header-actions">
+                  <span class="bot-label">Query Generator</span>
+                  <button class="config-trigger-btn" id="bot1ConfigBtn" onclick="toggleBotConfig(1, event)" title="Configure Bot 1 persona">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path></svg>
+                    Persona
+                  </button>
+                </div>
+              </div>
+              <!-- Bot 1 config dropdown (position:fixed, placed by JS) -->
+              <div class="config-dropdown-panel hidden" id="bot1ConfigPanel">
+                <div class="config-panel-title">Bot 1 Persona</div>
+
+                <div class="config-row-2">
+                  <div class="setting-group">
+                    <label for="req-personality">Personality</label>
+                    <select id="req-personality" class="input-field">
+                      <option value="neutral">Neutral</option>
+                      <option value="frustrated">Frustrated</option>
+                      <option value="confused">Confused</option>
+                      <option value="anxious">Anxious</option>
+                      <option value="hostile">Hostile</option>
+                      <option value="polite">Polite</option>
+                    </select>
+                  </div>
+                  <div class="setting-group">
+                    <label for="req-tone">Tone</label>
+                    <select id="req-tone" class="input-field">
+                      <option value="neutral">Neutral</option>
+                      <option value="formal">Formal</option>
+                      <option value="casual">Casual</option>
+                      <option value="aggressive">Aggressive</option>
+                      <option value="desperate">Desperate</option>
+                      <option value="polite">Polite</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="setting-group">
+                  <label>Vulnerabilities <span class="chip-count hidden" id="vulnCount"></span></label>
+                  <div class="chip-select" id="vulnChips">
+                    <button class="chip" type="button" data-check="req-badLanguage"       onclick="toggleChip(this)">Bad language</button>
+                    <button class="chip" type="button" data-check="req-aggressiveLanguage" onclick="toggleChip(this)">Aggressive</button>
+                    <button class="chip" type="button" data-check="req-slowReader"         onclick="toggleChip(this)">Slow reader</button>
+                    <button class="chip" type="button" data-check="req-englishNotFirst"    onclick="toggleChip(this)">ESL</button>
+                    <button class="chip" type="button" data-check="req-depression"         onclick="toggleChip(this)">Depression</button>
+                    <button class="chip" type="button" data-check="req-suicidalSelfHarm"   onclick="toggleChip(this)">Self harm</button>
+                    <button class="chip" type="button" data-check="req-personalInjury"     onclick="toggleChip(this)">Personal injury</button>
+                    <button class="chip" type="button" data-check="req-hurtingOthers"      onclick="toggleChip(this)">Hurting others</button>
+                    <button class="chip" type="button" data-check="req-medicalIssues"      onclick="toggleChip(this)">Medical</button>
+                    <button class="chip" type="button" data-check="req-pciData"            onclick="toggleChip(this)">PCI data</button>
+                    <button class="chip" type="button" data-check="req-financialAdvice"    onclick="toggleChip(this)">Financial advice</button>
+                  </div>
+                  <!-- Hidden checkboxes — read by getRequestConfig(), driven by chips above -->
+                  <div style="display:none">
+                    <input type="checkbox" id="req-badLanguage">
+                    <input type="checkbox" id="req-aggressiveLanguage">
+                    <input type="checkbox" id="req-slowReader">
+                    <input type="checkbox" id="req-englishNotFirst">
+                    <input type="checkbox" id="req-depression">
+                    <input type="checkbox" id="req-suicidalSelfHarm">
+                    <input type="checkbox" id="req-personalInjury">
+                    <input type="checkbox" id="req-hurtingOthers">
+                    <input type="checkbox" id="req-medicalIssues">
+                    <input type="checkbox" id="req-pciData">
+                    <input type="checkbox" id="req-financialAdvice">
+                  </div>
+                </div>
+
+                <div class="config-panel-footer">
+                  <label class="randomize-toggle">
+                    <input type="checkbox" id="req-randomize">
+                    <span>Randomize on each run</span>
+                  </label>
+                </div>
+              </div>
+              <div class="box-content">
+                <p id="bot1Query" class="result-text empty">No query yet</p>
+              </div>
+            </div>
+
+            <!-- Right Box: Bot 2 Response -->
+            <div class="result-box bot2-box" id="bot2Box">
+              <div class="box-header">
+                <h3>Bot 2 Response</h3>
+                <div class="box-header-actions">
+                  <span class="bot-label">Responder</span>
+                  <button class="config-trigger-btn" id="bot2ConfigBtn" onclick="toggleBotConfig(2, event)" title="Configure Bot 2 persona">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"></path></svg>
+                    Persona
+                  </button>
+                </div>
+              </div>
+              <!-- Bot 2 config dropdown (position:fixed, placed by JS) -->
+              <div class="config-dropdown-panel hidden" id="bot2ConfigPanel">
+                <div class="config-panel-title">Bot 2 Persona</div>
+                <div class="config-row-3">
+                  <div class="setting-group">
+                    <label for="res-personality">Personality</label>
+                    <select id="res-personality" class="input-field">
+                      <option value="professional">Professional</option>
+                      <option value="empathetic">Empathetic</option>
+                      <option value="friendly">Friendly</option>
+                      <option value="robotic">Robotic</option>
+                      <option value="formal">Formal</option>
+                    </select>
+                  </div>
+                  <div class="setting-group">
+                    <label for="res-tone">Tone</label>
+                    <select id="res-tone" class="input-field">
+                      <option value="helpful">Helpful</option>
+                      <option value="formal">Formal</option>
+                      <option value="casual">Casual</option>
+                      <option value="empathetic">Empathetic</option>
+                      <option value="authoritative">Authoritative</option>
+                      <option value="cautious">Cautious</option>
+                    </select>
+                  </div>
+                  <div class="setting-group">
+                    <label for="res-style">Style</label>
+                    <select id="res-style" class="input-field">
+                      <option value="concise">Concise</option>
+                      <option value="detailed">Detailed</option>
+                      <option value="structured">Structured</option>
+                      <option value="simple">Simple language</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="config-panel-footer">
+                  <label class="randomize-toggle">
+                    <input type="checkbox" id="res-randomize">
+                    <span>Randomize on each run</span>
+                  </label>
+                </div>
+              </div>
+              <div class="box-content">
+                <p id="bot2Response" class="result-text empty">No response yet</p>
+              </div>
+              <div class="evaluation-badge" id="evaluationBadge" style="display: none;">
+                <span id="evaluationText">Evaluating...</span>
+              </div>
+            </div>
+
+            <!-- Evaluation Details -->
+            <div class="evaluation-section hidden" id="evaluationSection">
+              <div class="evaluation-details">
+                <h3>Bot 3 Evaluation</h3>
+                <div class="bot-loading hidden" id="bot3Loading">
+                  <div class="spinner"></div>
+                  <span>Evaluating response...</span>
+                </div>
+                <div id="evaluationContent">
+                  <div class="evaluation-content">
+                    <div class="eval-item">
+                      <span class="eval-label">Confidence:</span>
+                      <span id="evaluationConfidence" class="eval-value">-</span>
+                    </div>
+                    <div class="eval-item">
+                      <span class="eval-label">Reasoning:</span>
+                      <p id="evaluationReasoning" class="eval-reasoning">-</p>
+                    </div>
+                  </div>
+                  <div id="configUsed" class="config-used hidden">
+                    <div class="config-used-row">
+                      <span class="config-used-label">Request:</span>
+                      <div id="requestConfigTags" class="config-tags"></div>
+                    </div>
+                    <div class="config-used-row">
+                      <span class="config-used-label">Response:</span>
+                      <div id="responseConfigTags" class="config-tags"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Will be filled by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
