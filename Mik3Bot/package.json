@@ -1,0 +1,27 @@
+{
+  "name": "Mik3Bot",
+  "version": "1.0.0",
+  "description": "A minimal desktop AI assistant powered by Llama API",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^41.5.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.mik3bot.desktop",
+    "productName": "Mik3Bot",
+    "mac": {
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}

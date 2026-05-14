@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Llama Desktop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: rgba(14, 14, 16, 0.92);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(255, 165, 80, 0.5);
+      --accent: #ff9f4a;
+      --text: #f0ede8;
+      --text-muted: rgba(240, 237, 232, 0.45);
+      --radius: 16px;
+      --shadow: 0 8px 40px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    html, body {
+      background: transparent;
+      overflow: hidden;
+      font-family: 'DM Sans', sans-serif;
+      -webkit-app-region: no-drag;
+      user-select: none;
+    }
+
+    #app { padding: 8px; display: flex; flex-direction: column; }
+
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card.focused { border-color: var(--border-focus); }
+
+    /* Drag bar */
+    .drag-bar {
+      height: 28px;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 12px;
+      cursor: grab; -webkit-app-region: drag;
+    }
+    .drag-bar:active { cursor: grabbing; }
+
+    .brand {
+      display: flex; align-items: center; gap: 6px;
+      -webkit-app-region: no-drag; pointer-events: none;
+    }
+    .brand-icon {
+      width: 14px; height: 14px;
+      background: var(--accent); border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent); opacity: 0.9;
+    }
+    .brand-name {
+      font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+      color: var(--text-muted); letter-spacing: 0.12em; text-transform: uppercase;
+    }
+
+    .controls { display: flex; gap: 6px; -webkit-app-region: no-drag; }
+    .ctrl-btn {
+      width: 10px; height: 10px; border-radius: 50%; border: none;
+      cursor: pointer; opacity: 0.6; transition: opacity 0.15s, transform 0.1s;
+    }
+    .ctrl-btn:hover { opacity: 1; transform: scale(1.15); }
+    .ctrl-btn.hide  { background: #ffbd2e; }
+    .ctrl-btn.close { background: #ff5f57; }
+
+    /* Input row */
+    .input-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 12px 10px;
+    }
+    .prompt-input {
+      flex: 1;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 300;
+      color: var(--text); outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      caret-color: var(--accent);
+    }
+    .prompt-input::placeholder { color: var(--text-muted); }
+    .prompt-input:focus {
+      border-color: var(--border-focus);
+      background: rgba(255,255,255,0.07);
+    }
+
+    .send-btn {
+      width: 32px; height: 32px; border-radius: 9px;
+      background: var(--accent); border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+    }
+    .send-btn:hover:not(:disabled) {
+      background: #ffb870;
+      box-shadow: 0 0 12px rgba(255,159,74,0.4);
+      transform: scale(1.05);
+    }
+    .send-btn:active:not(:disabled) { transform: scale(0.95); }
+    .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .send-btn svg { width: 14px; height: 14px; fill: #0e0e10; }
+
+    /* Settings */
+    .settings-bar {
+      display: flex; align-items: center; padding: 0 12px 6px; gap: 6px;
+    }
+    .settings-toggle {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); background: none; border: none;
+      cursor: pointer; padding: 4px 2px;
+      transition: color 0.15s; -webkit-app-region: no-drag;
+    }
+    .settings-toggle:hover { color: var(--accent); }
+    .kbd-hint {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); padding: 1px 5px;
+      border: 1px solid var(--border); border-radius: 4px; opacity: 0.6;
+    }
+
+    .settings-area {
+      overflow: hidden; max-height: 0;
+      transition: max-height 0.25s ease;
+    }
+    .settings-area.open { max-height: 130px; }
+
+    .settings-row {
+      display: flex; flex-direction: column; gap: 5px;
+      padding: 0 12px 10px;
+    }
+    .settings-line { display: flex; gap: 6px; align-items: center; }
+
+    .settings-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); outline: none;
+      transition: border-color 0.2s;
+    }
+    .settings-input:focus { border-color: var(--border-focus); color: var(--text); }
+    .settings-input.endpoint { flex: 1; }
+    .settings-input.model { width: 170px; }
+    .settings-input.apikey { flex: 1; }
+
+    .settings-label {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); opacity: 0.6; white-space: nowrap;
+    }
+
+    /* Toggle switch */
+    .toggle-wrap {
+      display: flex; align-items: center; gap: 7px;
+    }
+    .toggle-switch {
+      position: relative; width: 28px; height: 15px; flex-shrink: 0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      left: 2px; top: 50%; transform: translateY(-50%);
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: left 0.2s, background 0.2s;
+    }
+    .toggle-switch input:checked + .toggle-track {
+      background: rgba(255, 159, 74, 0.25);
+      border-color: var(--accent);
+    }
+    .toggle-switch input:checked + .toggle-track::after {
+      left: 15px;
+      background: var(--accent);
+    }
+
+    /* Response panel */
+    .response-panel {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4,0,0.2,1);
+    }
+    .response-panel.open { max-height: 420px; }
+
+    .response-divider { height: 1px; background: var(--border); margin: 0 12px; }
+
+    .response-body {
+      padding: 12px 14px 14px;
+      max-height: 380px; overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.1) transparent;
+    }
+    .response-body::-webkit-scrollbar { width: 4px; }
+    .response-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 2px; }
+
+    /* Loading */
+    .loading-dots { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
+    .loading-dots span {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
+      40%          { opacity: 1;   transform: scale(1); }
+    }
+
+    /* Plain text response */
+    .response-text {
+      font-size: 13px; font-weight: 300; line-height: 1.7;
+      color: var(--text); white-space: pre-wrap; word-break: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* Markdown rendered response */
+    .response-markdown {
+      font-size: 13px; font-weight: 300; line-height: 1.7;
+      color: var(--text); word-break: break-word;
+      animation: fadeIn 0.3s ease;
+    }
+    .response-markdown p  { margin-bottom: 0.6em; }
+    .response-markdown p:last-child { margin-bottom: 0; }
+    .response-markdown h1, .response-markdown h2, .response-markdown h3,
+    .response-markdown h4, .response-markdown h5, .response-markdown h6 {
+      font-family: 'DM Sans', sans-serif;
+      color: var(--text); font-weight: 500;
+      margin: 0.8em 0 0.3em;
+      line-height: 1.3;
+    }
+    .response-markdown h1 { font-size: 15px; }
+    .response-markdown h2 { font-size: 14px; }
+    .response-markdown h3 { font-size: 13px; }
+    .response-markdown strong { font-weight: 500; color: var(--text); }
+    .response-markdown em    { font-style: italic; opacity: 0.85; }
+    .response-markdown code {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      background: rgba(255,255,255,0.08);
+      padding: 1px 5px; border-radius: 4px;
+      color: var(--accent);
+    }
+    .response-markdown pre {
+      background: rgba(0,0,0,0.35);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      margin: 0.5em 0;
+    }
+    .response-markdown pre code {
+      background: none; padding: 0; color: var(--text);
+      font-size: 11px; white-space: pre;
+    }
+    .response-markdown ul, .response-markdown ol {
+      padding-left: 1.4em; margin: 0.4em 0;
+    }
+    .response-markdown li { margin-bottom: 0.2em; }
+    .response-markdown blockquote {
+      border-left: 2px solid var(--accent);
+      padding-left: 10px; margin: 0.5em 0;
+      opacity: 0.75;
+    }
+    .response-markdown a {
+      color: var(--accent); text-decoration: none; opacity: 0.85;
+    }
+    .response-markdown a:hover { opacity: 1; }
+    .response-markdown hr {
+      border: none; border-top: 1px solid var(--border); margin: 0.8em 0;
+    }
+    .response-markdown table {
+      border-collapse: collapse; width: 100%; font-size: 12px; margin: 0.5em 0;
+    }
+    .response-markdown th, .response-markdown td {
+      border: 1px solid var(--border); padding: 4px 8px; text-align: left;
+    }
+    .response-markdown th { background: rgba(255,255,255,0.05); font-weight: 500; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .response-meta {
+      margin-top: 10px;
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .response-model { color: var(--accent); opacity: 0.7; }
+
+    .error-text { font-size: 12px; color: #ff6b6b; line-height: 1.5; }
+
+    .copy-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 8px; font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    }
+    .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="card" id="mainCard">
+
+      <!-- Drag bar -->
+      <div class="drag-bar">
+        <div class="brand">
+          <div class="brand-icon"></div>
+          <span class="brand-name">Mik3Bot</span>
+        </div>
+        <div class="controls">
+          <button class="ctrl-btn hide" title="Hide (⌘⇧Space)" onclick="hideApp()"></button>
+          <button class="ctrl-btn close" title="Quit" onclick="closeApp()"></button>
+        </div>
+      </div>
+
+      <!-- Input row -->
+      <div class="input-row">
+        <input type="text" class="prompt-input" id="promptInput"
+          placeholder="Ask anything…" autocomplete="off" spellcheck="false"/>
+        <button class="send-btn" id="sendBtn" title="Send (Enter)">
+          <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+            <path d="M8 2l6 6-6 6V9H2V7h6V2z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Settings toggle -->
+      <div class="settings-bar">
+        <button class="settings-toggle" onclick="toggleSettings()">⚙ config</button>
+        <span class="kbd-hint">⌘⇧Space to toggle</span>
+      </div>
+
+      <!-- Settings area -->
+      <div class="settings-area" id="settingsArea">
+        <div class="settings-row">
+          <div class="settings-line">
+            <span class="settings-label">endpoint</span>
+            <input type="text" class="settings-input endpoint" id="endpointInput"
+              placeholder="http://localhost:11434" autocomplete="off"/>
+            <span class="settings-label">model</span>
+            <input type="text" class="settings-input model" id="modelInput"
+              placeholder="gemma4:latest" autocomplete="off"/>
+          </div>
+          <div class="settings-line">
+            <span class="settings-label">api key</span>
+            <input type="password" class="settings-input apikey" id="apiKeyInput"
+              placeholder="optional — leave blank for local Ollama" autocomplete="off"/>
+          </div>
+          <div class="settings-line">
+            <label class="toggle-wrap" style="cursor:pointer;">
+              <span class="toggle-switch">
+                <input type="checkbox" id="markdownToggle"/>
+                <span class="toggle-track"></span>
+              </span>
+              <span class="settings-label" style="opacity:1;">render markdown</span>
+            </label>
+          </div>
+          <div class="settings-line">
+            <label class="toggle-wrap" style="cursor:pointer;">
+              <span class="toggle-switch">
+                <input type="checkbox" id="storeHistoryToggle"/>
+                <span class="toggle-track"></span>
+              </span>
+              <span class="settings-label" style="opacity:1;">store history</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Response panel -->
+      <div class="response-panel" id="responsePanel">
+        <div class="response-divider"></div>
+        <div class="response-body" id="responseBody"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const promptInput    = document.getElementById('promptInput');
+    const sendBtn        = document.getElementById('sendBtn');
+    const responsePanel  = document.getElementById('responsePanel');
+    const responseBody   = document.getElementById('responseBody');
+    const mainCard       = document.getElementById('mainCard');
+    const endpointInput  = document.getElementById('endpointInput');
+    const modelInput     = document.getElementById('modelInput');
+    const apiKeyInput    = document.getElementById('apiKeyInput');
+    const markdownToggle = document.getElementById('markdownToggle');
+    const storeHistoryToggle = document.getElementById('storeHistoryToggle');
+    const settingsArea   = document.getElementById('settingsArea');
+
+    let settingsOpen = false;
+    let lastResponseText = '';
+
+    // Configure marked for safe rendering
+    if (typeof marked !== 'undefined') {
+      marked.setOptions({ breaks: true, gfm: true });
+    }
+
+    // ── Load config from main process ─────────────────────────────────────
+    async function loadConfig() {
+      const cfg = await window.electronAPI.getConfig();
+      endpointInput.value       = cfg.endpoint       || '';
+      modelInput.value          = cfg.model          || '';
+      apiKeyInput.value         = cfg.apiKey         || '';
+      markdownToggle.checked    = cfg.renderMarkdown === true;
+      storeHistoryToggle.checked = cfg.storeHistory !== false;
+    }
+
+    // ── Persist config ────────────────────────────────────────────────────
+    function persistConfig() {
+      window.electronAPI.saveConfig({
+        endpoint:       endpointInput.value.trim(),
+        model:          modelInput.value.trim(),
+        apiKey:         apiKeyInput.value.trim(),
+        renderMarkdown: markdownToggle.checked,
+        storeHistory:   storeHistoryToggle.checked
+      });
+    }
+
+    [endpointInput, modelInput, apiKeyInput].forEach(el => {
+      el.addEventListener('change', persistConfig);
+      el.addEventListener('blur',   persistConfig);
+    });
+    markdownToggle.addEventListener('change', persistConfig);
+    storeHistoryToggle.addEventListener('change', persistConfig);
+
+    // ── Focus / keyboard ──────────────────────────────────────────────────
+    promptInput.addEventListener('focus', () => mainCard.classList.add('focused'));
+    promptInput.addEventListener('blur',  () => mainCard.classList.remove('focused'));
+
+    promptInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendPrompt(); }
+      if (e.key === 'Escape') closeResponse();
+    });
+
+    sendBtn.addEventListener('click', sendPrompt);
+
+    function toggleSettings() {
+      settingsOpen = !settingsOpen;
+      settingsArea.classList.toggle('open', settingsOpen);
+      updateWindowHeight();
+    }
+
+    function closeResponse() {
+      responsePanel.classList.remove('open');
+      updateWindowHeight();
+    }
+
+    function updateWindowHeight() {
+      setTimeout(() => {
+        const h = document.getElementById('app').scrollHeight + 16;
+        window.electronAPI?.resizeWindow(Math.min(h, 540));
+      }, 50);
+    }
+
+    // ── Send prompt ───────────────────────────────────────────────────────
+    async function sendPrompt() {
+      const prompt = promptInput.value.trim();
+      if (!prompt) return;
+
+      const endpoint = endpointInput.value.trim();
+      const model    = modelInput.value.trim() || 'gemma4:latest';
+      const apiKey   = apiKeyInput.value.trim();
+
+      sendBtn.disabled = true;
+      showLoading();
+
+      const startTime = Date.now();
+      try {
+        const response = await window.electronAPI.callLlama({ endpoint, apiKey, model, prompt });
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        lastResponseText = response;
+        showResponse(response, model, elapsed);
+        promptInput.value = '';
+      } catch (err) {
+        showError(err.message || 'Something went wrong.');
+      } finally {
+        sendBtn.disabled = false;
+        promptInput.focus();
+      }
+    }
+
+    function showLoading() {
+      responseBody.innerHTML = `
+        <div class="loading-dots">
+          <span></span><span></span><span></span>
+        </div>`;
+      responsePanel.classList.add('open');
+      updateWindowHeight();
+    }
+
+    function renderContent(text) {
+      if (markdownToggle.checked && typeof marked !== 'undefined') {
+        // marked.parse returns sanitised HTML for GFM
+        return `<div class="response-markdown">${marked.parse(text)}</div>`;
+      }
+      return `<div class="response-text">${escapeHtml(text)}</div>`;
+    }
+
+    function showResponse(text, model, elapsed) {
+      responseBody.innerHTML = `
+        ${renderContent(text)}
+        <div class="response-meta">
+          <span class="response-model">${escapeHtml(model)}</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span>${elapsed}s</span>
+            <button class="copy-btn" onclick="copyResponse()">copy</button>
+          </div>
+        </div>`;
+      responsePanel.classList.add('open');
+      updateWindowHeight();
+    }
+
+    function showError(message) {
+      responseBody.innerHTML = `<div class="error-text">⚠ ${escapeHtml(message)}</div>`;
+      responsePanel.classList.add('open');
+      updateWindowHeight();
+    }
+
+    function copyResponse() {
+      navigator.clipboard.writeText(lastResponseText).then(() => {
+        const btn = responseBody.querySelector('.copy-btn');
+        if (btn) { btn.textContent = 'copied!'; setTimeout(() => btn.textContent = 'copy', 1500); }
+      });
+    }
+
+    function hideApp()  { window.electronAPI?.hideApp(); }
+    function closeApp() { window.electronAPI?.closeApp(); }
+
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────
+    loadConfig().then(() => {
+      promptInput.focus();
+      updateWindowHeight();
+    });
+  </script>
+</body>
+</html>
