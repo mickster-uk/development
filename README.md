@@ -1,6 +1,6 @@
 # Mik3Bot & BotTester
-> author: Mike Finch
-> date: March 2026
+> - author: Mike Finch
+> - date: March 2026
 
 ## Mik3Bot
 Is a self contained app, that calls a LLM locally
