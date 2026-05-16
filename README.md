@@ -1,13 +1,11 @@
 # Mik3Bot & BotTester
-author: Mike Finch
-date: March 2026
+> - author: Mike Finch
+> - date: March 2026
 
 ## Mik3Bot
-Is a self contained app, that calls an LLM locally. 
+Is a self contained app, that calls an LLM locally.
 
-Starting the application
-Navigate to Mik3Bot directory
-and type in:
+Starting the application: navigate to the Mik3Bot directory and run:
 ```bash
 npm start
 ```
