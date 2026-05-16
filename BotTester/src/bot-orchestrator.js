@@ -3,6 +3,11 @@ const axios = require('axios');
 class BotOrchestrator {
   constructor() {
     this.timeout = 30000; // 30 second timeout
+    this.ragService = null;
+  }
+
+  setRAGService(ragService) {
+    this.ragService = ragService;
   }
 
   /**
@@ -137,7 +142,7 @@ If the response correctly answers the query, set isCorrect to true. Otherwise, s
     return prompt;
   }
 
-  buildResponseSystemPrompt(cfg = {}) {
+  buildResponseSystemPrompt(cfg = {}, context = '') {
     const personalityMap = {
       professional: 'professional and competent',
       empathetic:   'empathetic and understanding',
@@ -162,7 +167,11 @@ If the response correctly answers the query, set isCorrect to true. Otherwise, s
     const personality = personalityMap[cfg.personality] || personalityMap.professional;
     const tone = toneMap[cfg.tone] || toneMap.helpful;
     const style = styleMap[cfg.style] || styleMap.concise;
-    return `You are a ${personality} assistant responding with a ${tone} tone. ${style} Answer the following question accurately.`;
+    let prompt = `You are a ${personality} assistant responding with a ${tone} tone. ${style} Answer the following question accurately.`;
+    if (context) {
+      prompt += `\n\nUse the following knowledge base excerpts to inform your response. Prioritise this content when relevant:\n\n${context}`;
+    }
+    return prompt;
   }
 
   async runBot1Step(query, model1, endpoint, requestConfig = {}) {
@@ -172,7 +181,15 @@ If the response correctly answers the query, set isCorrect to true. Otherwise, s
   }
 
   async runBot2Step(bot1Query, model2, endpoint, responseConfig = {}) {
-    const systemPrompt = this.buildResponseSystemPrompt(responseConfig);
+    let ragContext = '';
+    if (this.ragService && this.ragService.indexed) {
+      try {
+        ragContext = await this.ragService.retrieve(bot1Query);
+      } catch (e) {
+        console.error('RAG retrieve error:', e.message);
+      }
+    }
+    const systemPrompt = this.buildResponseSystemPrompt(responseConfig, ragContext);
     const bot2Response = await this.callModel(endpoint, model2, bot1Query, systemPrompt);
     return { bot2Response };
   }

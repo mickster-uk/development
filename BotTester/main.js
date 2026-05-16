@@ -2,11 +2,15 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-// Import bot orchestrator
+// Import bot orchestrator and RAG service
 const { BotOrchestrator } = require('./src/bot-orchestrator');
+const { RAGService } = require('./src/rag-service');
+
+const KNOWLEDGE_PATH = path.join(__dirname, 'knowledge');
 
 let mainWindow;
 let orchestrator;
+let ragService;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -27,8 +31,28 @@ function createWindow() {
   // mainWindow.webContents.openDevTools();
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Load saved endpoint so RAG uses the right Ollama URL from the start
+  let savedEndpoint = 'http://localhost:11434';
+  try {
+    const configPath = path.join(app.getPath('userData'), 'bot-tester-config.json');
+    if (fs.existsSync(configPath)) {
+      const saved = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (saved.endpoint) savedEndpoint = saved.endpoint;
+    }
+  } catch {}
+
   orchestrator = new BotOrchestrator();
+  ragService = new RAGService(KNOWLEDGE_PATH, savedEndpoint);
+  orchestrator.setRAGService(ragService);
+
+  // Index in the background — don't block the window from opening
+  ragService.index().then(result => {
+    console.log(`RAG: indexed ${result.chunkCount} chunks from ${result.fileCount} files`);
+  }).catch(e => {
+    console.error('RAG: index error:', e.message);
+  });
+
   createWindow();
 });
 
@@ -91,10 +115,24 @@ ipcMain.handle('save-config', (event, config) => {
   try {
     const configPath = path.join(app.getPath('userData'), 'bot-tester-config.json');
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8');
+    if (ragService && config.endpoint) ragService.endpoint = config.endpoint;
     return true;
   } catch (error) {
     console.error('Error saving config:', error);
     throw error;
+  }
+});
+
+ipcMain.handle('rag-status', () => {
+  return ragService ? ragService.getStatus() : { indexed: false, chunkCount: 0, knowledgePath: KNOWLEDGE_PATH, lastError: null };
+});
+
+ipcMain.handle('rag-index', async () => {
+  if (!ragService) return { error: 'RAG service not initialised' };
+  try {
+    return await ragService.index();
+  } catch (e) {
+    return { error: e.message };
   }
 });
 

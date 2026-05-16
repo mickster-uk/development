@@ -1,175 +1,123 @@
-# Bot Tester - Quick Start Guide
+# Bot Tester — Quick Start
 
-## 🚀 Getting Started
+## Prerequisites
 
-### Prerequisites
-- **Node.js** 14+ installed
-- **An LLM Service** running (Ollama is recommended)
+- **Node.js** 18+
+- **Ollama** installed and running — [ollama.ai](https://ollama.ai/)
 
-### Step 1: Start Your LLM Service
+---
 
-If you're using **Ollama** (recommended):
+## Step 1: Install dependencies
+
 ```bash
-# Install Ollama from https://ollama.ai/
-# Then run:
-ollama serve
+npm install
 ```
 
-This will start the Ollama service on `http://localhost:11434`
+## Step 2: Pull models
 
-### Step 2: Start the Bot Tester App
+You need at least one chat model and the embedding model for RAG:
 
 ```bash
-cd /Users/mikefinch/Desktop/development/BotTester
+ollama pull mistral          # or llama3, qwen2, etc.
+ollama pull nomic-embed-text # required for the knowledge base
+```
+
+## Step 3: Add your knowledge articles (optional but recommended)
+
+Drop `.md` or `.json` files into the `knowledge/` folder next to this file. Subfolders work too. The app will index them on startup.
+
+```
+knowledge/
+├── your-policy.md
+├── product-faq.md
+└── procedures/
+    └── onboarding.md
+```
+
+> **JSON format**: an array of strings, an array of objects, or a flat key→value object.
+
+## Step 4: Start the app
+
+```bash
 npm start
 ```
 
-The application will launch with a modern professional interface.
+## Step 5: Configure models
 
-### Step 3: Configure Your Bots
+1. Click the gear icon (top right) to open Settings
+2. Confirm the endpoint is `http://localhost:11434`
+3. Click **Load Models**
+4. Assign a model to each bot (you can use the same model for all three)
+5. Click **Save Settings**
 
-1. **Click the ⚙️ Settings button** (top right)
-2. **Enter the endpoint URL** (default: `http://localhost:11434` for Ollama)
-3. **Click "Load Models"** to fetch available models
-4. **Select models** for each bot:
-   - Bot 1: Query Generator (optional, for future use)
-   - Bot 2: Responder (required - generates answers)
-   - Bot 3: Evaluator (required - judges correctness)
-5. **Click "Save Settings"**
+If you added knowledge articles, you'll see the chunk count under **Knowledge Base (RAG)**. Click **Re-index Knowledge Base** after adding or editing files.
 
-### Step 4: Run Your First Test
+## Step 6: Run your first test
 
-1. **Enter a query** in the input field
-   - Example: "What is the capital of France?"
-2. **Click "Run Test"** or press Ctrl+Enter (Cmd+Enter on Mac)
-3. **Observe the results**:
-   - **Left box**: Your query
-   - **Right box**: Bot 2's response
-     - **Green border**: Bot 3 deemed it correct ✓
-     - **Red border**: Bot 3 deemed it incorrect ✗
+1. Type a question in the input field, e.g. *"What is our refund policy?"*
+2. Press **Enter** or click **Run Test**
+3. Watch each bot step complete in real time:
+   - **Bot 1** rewrites your question as a persona-driven query
+   - **Bot 2** answers, drawing on your knowledge articles if relevant
+   - **Bot 3** evaluates the answer and returns a confidence score
 
-## 📊 Understanding the Three-Bot System
+---
+
+## How the three-bot pipeline works
 
 ```
-User Query
-    ↓
-Bot 1: Query Generator
-    ↓ (passes query to)
-Bot 2: Responder (generates answer)
-    ↓ (passes query + answer to)
-Bot 3: Evaluator (determines if answer is correct)
-    ↓
-Results: Green (correct) or Red (incorrect)
+Your input
+    │
+    ▼
+Bot 1 — Query Generator
+    │  rewrites your input as a user with a specific personality/tone
+    ▼
+Bot 2 — Responder
+    │  answers the query; relevant knowledge passages injected automatically
+    ▼
+Bot 3 — Evaluator
+    │  scores the answer: isCorrect / confidence / reasoning
+    ▼
+Results displayed (green = correct, red = incorrect)
 ```
 
-## 🎨 UI Components
+---
 
-### Header
-- **Logo**: Shows the app name with animated icon
-- **Settings Button** (⚙️): Configure endpoint and models
-- **History Button** (🕐): View past test results
+## Persona options
 
-### Main Content Area
-- **Query Input**: Enter text to test
-- **Left Result Box**: Displays the query (Bot 1)
-- **Right Result Box**: Displays Bot 2's response
-  - Changes color based on Bot 3's evaluation
-  - Shows confidence and reasoning below
-- **Evaluation Details**: Full evaluation from Bot 3
+Both Bot 1 and Bot 2 have configurable personas. Click the **Persona** button on each result box to configure them, or enable **Randomise on each run** for broad coverage.
 
-### Settings Panel
-- Configure LLM endpoint
-- Select models for each bot
-- Load available models
-- Save preferences
+**Bot 1 flags** (simulate challenging users): bad language, aggressive language, ESL, depression, self-harm ideation, PCI data, financial advice requests, and more.
 
-### History Panel
-- View all past test results
-- Click any result to reload it
-- Clear all history
+**Bot 2 options**: personality (professional/empathetic/friendly…), tone, and response style (concise/detailed/structured/simple).
 
-## ⚙️ Supported LLM Services
+---
 
-### Ollama (Recommended)
-```bash
-ollama serve
-# Endpoint: http://localhost:11434
-```
+## Exporting results
 
-### Other Compatible Services
-Any service with an `/api/generate` endpoint compatible with Ollama's API format.
+Open the History panel (clock icon) to:
+- Re-load any past test result
+- Export as a **Jest test file** (`bot-tests.test.js`) — re-runs every query against your live endpoint
+- Export as **JUnit XML** — import into CI dashboards (Jenkins, GitHub Actions, etc.)
 
-## 🔧 Recommended Models
+---
 
-For best results, use capable models:
-- **Bot 2 (Responder)**: `mistral`, `llama2`, `neural-chat`
-- **Bot 3 (Evaluator)**: `mistral`, `neural-chat` (models good at analysis)
+## Troubleshooting
 
-Smaller models like `tinyllama` work but may have lower accuracy.
+| Problem | Fix |
+|---|---|
+| "Cannot connect to endpoint" | Run `ollama serve` and confirm the URL in Settings |
+| "No models found" | Pull a model first: `ollama pull mistral` |
+| RAG shows 0 chunks | Check that `.md`/`.json` files are in `knowledge/` and click Re-index |
+| RAG error: embedding failed | Run `ollama pull nomic-embed-text` |
+| Tests are slow | Switch to a smaller model (e.g. `qwen2:1.5b`); larger models are slower |
+| App won't start | Delete `node_modules`, run `npm install`, ensure Node 18+ |
 
-## 📁 Project Structure
+---
 
-```
-BotTester/
-├── main.js                    # Electron main process
-├── preload.js                # IPC security bridge
-├── index.html                # UI markup
-├── styles.css                # Modern professional styling
-├── renderer.js               # UI logic and event handlers
-├── package.json              # Project configuration
-├── src/
-│   └── bot-orchestrator.js   # Three-bot coordination logic
-└── README.md                 # Full documentation
-```
+## Data & privacy
 
-## 🐛 Troubleshooting
-
-### "Cannot connect to endpoint"
-- Make sure your LLM service is running (`ollama serve`)
-- Verify the endpoint URL is correct
-- Check if the service is accessible at that URL
-
-### "No models found"
-- Start your LLM service
-- Pull a model first: `ollama pull mistral`
-- Make sure you clicked "Load Models" button
-
-### App won't start
-- Delete `node_modules` and `package-lock.json`
-- Run `npm install` again
-- Make sure Node.js 14+ is installed
-
-### Tests are slow
-- Using large models (13B+ parameters) will be slower
-- Increase timeout by editing `bot-orchestrator.js`
-- Consider using smaller models for faster testing
-
-## 💾 Data Storage
-
-- **Config**: Stored in `~/Library/Application Support/Code/User/workspaceStorage/` (Electron user data)
-- **History**: Saved as JSON for easy export/import
-- **No internet required**: All processing is local
-
-## 🎯 Tips for Best Results
-
-1. **Use specific, clear queries** - Vague questions lead to unclear evaluations
-2. **Same model for Bot 2 & 3** - Consistency can improve evaluation accuracy
-3. **Test with multiple queries** - See patterns in Bot 3's evaluation style
-4. **Export history** - Keep records of your tests for analysis
-
-## 📝 Example Queries to Test
-
-- "What is photosynthesis?"
-- "How do I bake a chocolate cake?"
-- "Explain quantum computing"
-- "What are the benefits of exercise?"
-- "Name the largest planet in our solar system"
-
-## 🚀 Next Steps
-
-1. Run `npm start` to launch the app
-2. Configure your LLM service
-3. Select your models
-4. Start testing!
-
-For more information, see README.md
+- All processing is local — no data leaves your machine
+- Config saved to Electron user data (`~/Library/Application Support/bot-tester/` on macOS)
+- History saved as JSON in the same directory
+- RAG embedding cache saved to `knowledge/.rag-cache.json`

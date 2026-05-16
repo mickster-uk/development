@@ -74,6 +74,16 @@
             <button id="loadModelsBtn" class="btn btn-secondary">Load Models</button>
             <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
           </div>
+
+          <div class="setting-group rag-section">
+            <label>Knowledge Base (RAG)</label>
+            <div id="ragStatus" class="rag-status">
+              <span id="ragStatusText" class="rag-status-text">Checking...</span>
+            </div>
+            <small id="ragPath" class="help-text"></small>
+            <div id="ragError" class="rag-error hidden"></div>
+            <button id="ragIndexBtn" class="btn btn-secondary" style="margin-top:8px">Re-index Knowledge Base</button>
+          </div>
         </div>
       </aside>
 

@@ -702,6 +702,47 @@ body {
   border-top: 1px solid var(--border-color);
 }
 
+/* RAG Status */
+.rag-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-sm);
+}
+
+.rag-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.rag-status-text {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.rag-status-text.ready {
+  color: var(--color-success);
+}
+
+.rag-status-text.error {
+  color: var(--color-error);
+}
+
+.rag-error {
+  font-size: 0.72rem;
+  color: var(--color-warning);
+  margin-top: var(--spacing-xs);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--border-radius);
+  padding: 6px 8px;
+}
+
+.rag-error.hidden {
+  display: none;
+}
+
 /* History Panel */
 .history-content {
   flex: 1;

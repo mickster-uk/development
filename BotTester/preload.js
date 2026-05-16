@@ -32,5 +32,11 @@ contextBridge.exposeInMainWorld('botTesterAPI', {
     ipcRenderer.invoke('save-history', history),
 
   exportFile: (defaultName, content) =>
-    ipcRenderer.invoke('export-file', { defaultName, content })
+    ipcRenderer.invoke('export-file', { defaultName, content }),
+
+  ragStatus: () =>
+    ipcRenderer.invoke('rag-status'),
+
+  ragIndex: () =>
+    ipcRenderer.invoke('rag-index')
 });

@@ -65,9 +65,70 @@ async function initializeApp() {
     testHistory = await window.botTesterAPI.getHistory();
     updateHistoryDisplay();
     await loadAvailableModels();
+    await refreshRAGStatus();
   } catch (error) {
     console.error('Initialization error:', error);
     showError('Failed to initialize app: ' + error.message);
+  }
+}
+
+async function refreshRAGStatus() {
+  const statusText = document.getElementById('ragStatusText');
+  const ragPath    = document.getElementById('ragPath');
+  const ragError   = document.getElementById('ragError');
+  if (!statusText) return;
+
+  try {
+    const status = await window.botTesterAPI.ragStatus();
+    ragPath.textContent = `Folder: ${status.knowledgePath}`;
+    if (status.indexed && status.chunkCount > 0) {
+      statusText.textContent = `${status.chunkCount} chunks indexed`;
+      statusText.className = 'rag-status-text ready';
+    } else if (status.indexed) {
+      statusText.textContent = 'No articles found — add .md or .json files to the knowledge folder';
+      statusText.className = 'rag-status-text';
+    } else {
+      statusText.textContent = 'Indexing...';
+      statusText.className = 'rag-status-text';
+    }
+    if (status.lastError) {
+      ragError.textContent = status.lastError;
+      ragError.classList.remove('hidden');
+    } else {
+      ragError.classList.add('hidden');
+    }
+  } catch (e) {
+    statusText.textContent = 'RAG unavailable';
+    statusText.className = 'rag-status-text error';
+  }
+}
+
+async function reindexKnowledge() {
+  const btn        = document.getElementById('ragIndexBtn');
+  const statusText = document.getElementById('ragStatusText');
+  const ragError   = document.getElementById('ragError');
+  btn.disabled = true;
+  btn.textContent = 'Indexing...';
+  statusText.textContent = 'Indexing...';
+  statusText.className = 'rag-status-text';
+  ragError.classList.add('hidden');
+
+  try {
+    const result = await window.botTesterAPI.ragIndex();
+    if (result.error) {
+      statusText.textContent = 'Index failed';
+      statusText.className = 'rag-status-text error';
+      ragError.textContent = result.error;
+      ragError.classList.remove('hidden');
+    } else {
+      await refreshRAGStatus();
+    }
+  } catch (e) {
+    statusText.textContent = 'Index failed';
+    statusText.className = 'rag-status-text error';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Re-index Knowledge Base';
   }
 }
 
@@ -862,6 +923,7 @@ document.getElementById('collapseBtn').addEventListener('click', () => {
 loadModelsBtn.addEventListener('click', loadAvailableModels);
 saveSettingsBtn.addEventListener('click', saveSettings);
 clearHistoryBtn.addEventListener('click', clearHistory);
+document.getElementById('ragIndexBtn').addEventListener('click', reindexKnowledge);
 
 // Allow Enter in settings to save
 endpointInput.addEventListener('keydown', (e) => {
