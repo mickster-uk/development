@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   resizeWindow: (height) => ipcRenderer.send('resize-window', { height }),
   moveWindow: (deltaX, deltaY) => ipcRenderer.send('move-window', { deltaX, deltaY }),
   closeApp: () => ipcRenderer.send('close-app'),
-  hideApp: () => ipcRenderer.send('hide-app')
+  hideApp: () => ipcRenderer.send('hide-app'),
+  ragStatus: () => ipcRenderer.invoke('rag-status'),
+  ragIndex: () => ipcRenderer.invoke('rag-index')
 });

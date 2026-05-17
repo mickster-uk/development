@@ -3,6 +3,10 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const { RAGService } = require('./src/rag-service');
+
+const KNOWLEDGE_PATH = path.join(__dirname, 'knowledge');
+let ragService;
 
 // ── Persistent config (plain JSON in userData) ────────────────────────────
 function getConfigPath() {
@@ -74,6 +78,10 @@ function createWindow() {
 app.whenReady().then(() => {
   createWindow();
 
+  const config = loadConfig();
+  ragService = new RAGService(KNOWLEDGE_PATH, config.endpoint || DEFAULTS.endpoint);
+  ragService.index().catch(e => console.error('RAG initial index failed:', e.message));
+
   // Cmd/Ctrl+Shift+Space toggles the window
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     if (mainWindow.isVisible()) {
@@ -97,7 +105,15 @@ ipcMain.handle('get-config', () => {
 
 ipcMain.handle('save-config', (event, data) => {
   saveConfig({ ...loadConfig(), ...data });
+  if (data.endpoint && ragService) ragService.endpoint = data.endpoint;
   return true;
+});
+
+ipcMain.handle('rag-status', () => ragService ? ragService.getStatus() : { indexed: false, chunkCount: 0, fileCount: 0, lastError: null });
+
+ipcMain.handle('rag-index', async () => {
+  if (!ragService) return;
+  return ragService.index();
 });
 
 // ── API call ──────────────────────────────────────────────────────────────
@@ -106,9 +122,16 @@ ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) 
   const url = new URL('/api/chat', baseUrl);
   const transport = url.protocol === 'https:' ? https : http;
 
+  const messages = [];
+  if (ragService && ragService.indexed) {
+    const context = await ragService.retrieve(prompt);
+    if (context) messages.push({ role: 'system', content: `Relevant knowledge:\n\n${context}` });
+  }
+  messages.push({ role: 'user', content: prompt });
+
   const body = JSON.stringify({
     model: model || DEFAULTS.model,
-    messages: [{ role: 'user', content: prompt }],
+    messages,
     stream: false
   });
 
