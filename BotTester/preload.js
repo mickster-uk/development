@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('botTesterAPI', {
   exportFile: (defaultName, content) =>
     ipcRenderer.invoke('export-file', { defaultName, content }),
 
+  getVersion: () =>
+    ipcRenderer.invoke('get-version'),
+
   ragStatus: () =>
     ipcRenderer.invoke('rag-status'),
 

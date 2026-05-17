@@ -123,6 +123,8 @@ ipcMain.handle('save-config', (event, config) => {
   }
 });
 
+ipcMain.handle('get-version', () => app.getVersion());
+
 ipcMain.handle('rag-status', () => {
   return ragService ? ragService.getStatus() : { indexed: false, chunkCount: 0, knowledgePath: KNOWLEDGE_PATH, lastError: null };
 });

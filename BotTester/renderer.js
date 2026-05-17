@@ -66,6 +66,10 @@ async function initializeApp() {
     updateHistoryDisplay();
     await loadAvailableModels();
     await refreshRAGStatus();
+
+    const version = await window.botTesterAPI.getVersion();
+    const badge = document.getElementById('versionBadge');
+    if (badge) badge.textContent = `v${version}`;
   } catch (error) {
     console.error('Initialization error:', error);
     showError('Failed to initialize app: ' + error.message);
@@ -777,14 +781,21 @@ function initBgCanvas() {
   window.addEventListener('resize', () => { resize(); spawn(); });
 }
 
-// 3D morphing icon: cube → sphere → pyramid
+// 3D morphing icon: cube ↔ sphere ↔ pyramid via vertex interpolation
 function initIconCanvas() {
   const cvs = document.getElementById('iconCanvas');
   const ctx = cvs.getContext('2d');
   const W = cvs.width, H = cvs.height;
-  const SHAPES = ['cube', 'sphere', 'pyramid'];
-  const HOLD = 150, FADE = 45;
-  const CYCLE = (HOLD + FADE) * SHAPES.length;
+
+  // Shared edge topology for all three shapes (cube's 12 edges)
+  const EDGES = [
+    [0,1],[1,2],[2,3],[3,0],   // front face ring
+    [4,5],[5,6],[6,7],[7,4],   // back face ring
+    [0,4],[1,5],[2,6],[3,7]    // lateral connectors
+  ];
+
+  const HOLD = 130, MORPH = 70;
+  const CYCLE = (HOLD + MORPH) * 3;
   let frame = 0;
 
   const ease = t => (1 - Math.cos(t * Math.PI)) / 2;
@@ -792,9 +803,7 @@ function initIconCanvas() {
   const rotVec = (x, y, z, rx, ry) => {
     const y1 = y * Math.cos(rx) - z * Math.sin(rx);
     const z1 = y * Math.sin(rx) + z * Math.cos(rx);
-    const x2 = x * Math.cos(ry) + z1 * Math.sin(ry);
-    const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry);
-    return [x2, y1, z2];
+    return [x * Math.cos(ry) + z1 * Math.sin(ry), y1, -x * Math.sin(ry) + z1 * Math.cos(ry)];
   };
 
   const proj = (x, y, z) => {
@@ -802,92 +811,86 @@ function initIconCanvas() {
     return [W / 2 + x * f * W * 0.38, H / 2 + y * f * H * 0.38];
   };
 
-  const drawWireframe = (verts, edges, alpha) => {
+  // ── Shape vertex definitions (8 verts each, matching EDGES topology) ──
+
+  const s = 0.78;
+
+  // Cube: 8 corners
+  const CUBE = [
+    [-s,-s,-s], [s,-s,-s], [s,s,-s], [-s,s,-s],
+    [-s,-s, s], [s,-s, s], [s,s, s], [-s,s, s]
+  ];
+
+  // Sphere: push each cube corner onto the sphere surface (r=1.0)
+  // This preserves the edge topology while rounding the shape
+  const R = 1.0;
+  const SPHERE = CUBE.map(([x,y,z]) => {
+    const len = Math.sqrt(x*x + y*y + z*z);
+    return [x/len*R, y/len*R, z/len*R];
+  });
+
+  // Pyramid: v0,v1,v4,v5 (top ring) collapse to apex; v2,v3,v6,v7 (bottom ring) become base
+  // Degenerate edges between apex copies are skipped at draw time
+  const AP = -0.88;
+  const PYRAMID = [
+    [0,AP,0], [0,AP,0], [s,s,-s], [-s,s,-s],
+    [0,AP,0], [0,AP,0], [s,s, s], [-s,s, s]
+  ];
+
+  const SHAPES = [CUBE, SPHERE, PYRAMID];
+
+  // ── Interpolation ──
+
+  const lerpVerts = (A, B, t) =>
+    A.map((v, i) => [
+      v[0] + (B[i][0] - v[0]) * t,
+      v[1] + (B[i][1] - v[1]) * t,
+      v[2] + (B[i][2] - v[2]) * t
+    ]);
+
+  // ── Rendering ──
+
+  const drawMesh = (verts, alpha) => {
     ctx.strokeStyle = `rgba(96,165,250,${alpha})`;
     ctx.lineWidth = 1;
     ctx.lineCap = 'round';
-    for (const [a, b] of edges) {
-      const [ax, ay] = proj(...verts[a]);
-      const [bx, by] = proj(...verts[b]);
+
+    for (const [a, b] of EDGES) {
+      const va = verts[a], vb = verts[b];
+      // skip degenerate edges (e.g. apex-to-apex during pyramid phase)
+      const dx = va[0]-vb[0], dy = va[1]-vb[1], dz = va[2]-vb[2];
+      if (dx*dx + dy*dy + dz*dz < 1e-4) continue;
+      const [ax, ay] = proj(...va);
+      const [bx, by] = proj(...vb);
       ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     }
+
     ctx.fillStyle = `rgba(96,165,250,${alpha * 0.9})`;
+    const seen = new Set();
     for (const v of verts) {
+      const key = `${v[0].toFixed(2)},${v[1].toFixed(2)},${v[2].toFixed(2)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const [px, py] = proj(...v);
       ctx.beginPath(); ctx.arc(px, py, 1.2, 0, Math.PI * 2); ctx.fill();
     }
   };
 
-  const getCube = (rx, ry) => {
-    const s = 0.8;
-    const raw = [[-s,-s,-s],[s,-s,-s],[s,s,-s],[-s,s,-s],[-s,-s,s],[s,-s,s],[s,s,s],[-s,s,s]];
-    return {
-      verts: raw.map(([x,y,z]) => rotVec(x,y,z,rx,ry)),
-      edges: [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]
-    };
-  };
-
-  const getPyramid = (rx, ry) => {
-    const s = 0.85;
-    const raw = [[0,0.9,0],[-s,-s,-s],[s,-s,-s],[s,-s,s],[-s,-s,s]];
-    return {
-      verts: raw.map(([x,y,z]) => rotVec(x,y,z,rx,ry)),
-      edges: [[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[4,1]]
-    };
-  };
-
-  const drawSphere = (rx, ry, alpha) => {
-    ctx.strokeStyle = `rgba(96,165,250,${alpha * 0.55})`;
-    ctx.lineWidth = 0.8;
-    const r = 0.82, LATS = 5, LNGS = 6, STEPS = 36;
-    for (let i = 1; i < LATS; i++) {
-      const phi = (i / LATS) * Math.PI;
-      const yr = Math.cos(phi) * r, xr = Math.sin(phi) * r;
-      ctx.beginPath();
-      for (let j = 0; j <= STEPS; j++) {
-        const theta = (j / STEPS) * Math.PI * 2;
-        const [px, py] = proj(...rotVec(xr * Math.cos(theta), yr, xr * Math.sin(theta), rx, ry));
-        j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
-      ctx.stroke();
-    }
-    for (let i = 0; i < LNGS; i++) {
-      const theta = (i / LNGS) * Math.PI;
-      ctx.beginPath();
-      for (let j = 0; j <= STEPS; j++) {
-        const phi = (j / STEPS) * Math.PI;
-        const [px, py] = proj(...rotVec(
-          Math.sin(phi) * Math.cos(theta) * r,
-          Math.cos(phi) * r,
-          Math.sin(phi) * Math.sin(theta) * r,
-          rx, ry
-        ));
-        j === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-      }
-      ctx.stroke();
-    }
-  };
-
-  const drawShape = (name, rx, ry, alpha) => {
-    if (name === 'cube')     { const {verts,edges} = getCube(rx,ry);    drawWireframe(verts,edges,alpha); }
-    else if (name === 'sphere')   { drawSphere(rx, ry, alpha); }
-    else if (name === 'pyramid')  { const {verts,edges} = getPyramid(rx,ry); drawWireframe(verts,edges,alpha); }
-  };
+  // ── Loop ──
 
   const loop = () => {
     ctx.clearRect(0, 0, W, H);
     const rx = frame * 0.006, ry = frame * 0.011;
-    const t = frame % CYCLE;
-    const idx = Math.floor(t / (HOLD + FADE)) % SHAPES.length;
-    const phaseT = t % (HOLD + FADE);
+    const t   = frame % CYCLE;
+    const idx = Math.floor(t / (HOLD + MORPH)) % 3;
+    const ph  = t % (HOLD + MORPH);
 
-    if (phaseT < HOLD) {
-      drawShape(SHAPES[idx], rx, ry, 0.9);
-    } else {
-      const p = ease((phaseT - HOLD) / FADE);
-      drawShape(SHAPES[idx], rx, ry, 0.9 * (1 - p));
-      drawShape(SHAPES[(idx + 1) % SHAPES.length], rx, ry, 0.9 * p);
-    }
+    const rawVerts = ph < HOLD
+      ? SHAPES[idx]
+      : lerpVerts(SHAPES[idx], SHAPES[(idx + 1) % 3], ease((ph - HOLD) / MORPH));
+
+    drawMesh(rawVerts.map(([x,y,z]) => rotVec(x, y, z, rx, ry)), 0.9);
+
     frame++;
     requestAnimationFrame(loop);
   };
