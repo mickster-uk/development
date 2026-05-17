@@ -82,8 +82,14 @@ async function refreshRAGStatus() {
     const status = await window.botTesterAPI.ragStatus();
     ragPath.textContent = `Folder: ${status.knowledgePath}`;
     if (status.indexed && status.chunkCount > 0) {
-      statusText.textContent = `${status.chunkCount} chunks indexed`;
+      statusText.textContent = `${status.chunkCount} chunk${status.chunkCount !== 1 ? 's' : ''} indexed from ${status.fileCount} file${status.fileCount !== 1 ? 's' : ''}`;
       statusText.className = 'rag-status-text ready';
+    } else if (status.indexed && status.fileCount > 0 && status.lastError) {
+      statusText.textContent = 'Indexing failed — see error below';
+      statusText.className = 'rag-status-text error';
+    } else if (status.indexed && status.fileCount > 0) {
+      statusText.textContent = `${status.fileCount} file${status.fileCount !== 1 ? 's' : ''} found but produced no indexable chunks`;
+      statusText.className = 'rag-status-text';
     } else if (status.indexed) {
       statusText.textContent = 'No articles found — add .md or .json files to the knowledge folder';
       statusText.className = 'rag-status-text';
@@ -107,6 +113,7 @@ async function reindexKnowledge() {
   const btn        = document.getElementById('ragIndexBtn');
   const statusText = document.getElementById('ragStatusText');
   const ragError   = document.getElementById('ragError');
+  if (!btn || !statusText || !ragError) return;
   btn.disabled = true;
   btn.textContent = 'Indexing...';
   statusText.textContent = 'Indexing...';

@@ -17,6 +17,7 @@ class RAGService {
     this.chunks = [];
     this.indexed = false;
     this.lastError = null;
+    this.lastFileCount = 0;
   }
 
   async index() {
@@ -27,6 +28,7 @@ class RAGService {
     const newCache = {};
 
     const files = this._findFiles();
+    this.lastFileCount = files.length;
     if (files.length === 0) {
       this.chunks = [];
       this.indexed = true;
@@ -100,6 +102,7 @@ class RAGService {
     return {
       indexed: this.indexed,
       chunkCount: this.chunks.length,
+      fileCount: this.lastFileCount,
       knowledgePath: this.knowledgePath,
       lastError: this.lastError
     };
