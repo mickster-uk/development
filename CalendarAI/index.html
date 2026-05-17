@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CalendarAI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0e0e10;
+      --surface: rgba(255,255,255,0.03);
+      --surface-hover: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.08);
+      --border-focus: rgba(255,165,80,0.5);
+      --accent: #ff9f4a;
+      --accent-dim: rgba(255,159,74,0.15);
+      --text: #f0ede8;
+      --muted: rgba(240,237,232,0.45);
+      --muted2: rgba(240,237,232,0.25);
+      --green: #6fcf97;
+      --red: #ff6b6b;
+      --radius: 10px;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      height: 100vh;
+      overflow: hidden;
+      user-select: none;
+      -webkit-app-region: no-drag;
+    }
+
+    #root {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    /* ── Titlebar ─────────────────────────────────────────────────────── */
+    #titlebar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      height: 44px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      -webkit-app-region: drag;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      -webkit-app-region: no-drag;
+      pointer-events: none;
+    }
+    .brand-dot {
+      width: 10px; height: 10px;
+      background: var(--accent);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    .brand-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .year-nav {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 auto;
+      -webkit-app-region: no-drag;
+    }
+    .year-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      padding: 3px 9px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .year-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .year-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      min-width: 50px;
+      text-align: center;
+    }
+
+    .win-controls {
+      display: flex;
+      gap: 6px;
+      -webkit-app-region: no-drag;
+      margin-left: auto;
+    }
+    .win-btn {
+      width: 11px; height: 11px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      opacity: 0.7;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .win-btn:hover { opacity: 1; transform: scale(1.1); }
+    .win-btn.min  { background: #ffbd2e; }
+    .win-btn.max  { background: #27c93f; }
+    .win-btn.cls  { background: #ff5f57; }
+
+    .settings-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px;
+      transition: color 0.15s;
+      -webkit-app-region: no-drag;
+      line-height: 1;
+    }
+    .settings-btn:hover { color: var(--accent); }
+
+    /* ── Search bar ───────────────────────────────────────────────────── */
+    #searchBar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .search-input::placeholder { color: var(--muted); }
+    .search-input:focus { border-color: var(--border-focus); background: var(--surface-hover); }
+
+    .search-btn {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: #0e0e10;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .search-btn:hover:not(:disabled) { background: #ffb870; transform: scale(1.02); }
+    .search-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .rag-indicator {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted2);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .rag-indicator.ready { color: var(--green); opacity: 0.8; }
+    .rag-indicator.indexing { color: var(--accent); opacity: 0.8; }
+    .rag-indicator.error { color: var(--red); opacity: 0.8; }
+
+    /* ── Content area ─────────────────────────────────────────────────── */
+    #content {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Setup / auth screen ─────────────────────────────────────────── */
+    #setupScreen {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+    }
+    .setup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 36px 40px;
+      max-width: 480px;
+      width: 100%;
+    }
+    .setup-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text);
+    }
+    .setup-subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .setup-subtitle a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .field-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .field-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--text);
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    .field-input:focus { border-color: var(--border-focus); }
+    .field-input::placeholder { color: var(--muted2); }
+
+    .btn-primary {
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #0e0e10;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .btn-primary:hover { background: #ffb870; transform: translateY(-1px); }
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-secondary {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+
+    .setup-error {
+      font-size: 12px;
+      color: var(--red);
+      margin-top: 12px;
+      text-align: center;
+    }
+
+    /* ── Timeline ────────────────────────────────────────────────────── */
+    #timeline {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px 20px 40px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+    #timeline::-webkit-scrollbar { width: 4px; }
+    #timeline::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .timeline-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: var(--muted);
+      font-size: 13px;
+      gap: 8px;
+    }
+    .timeline-empty .big { font-size: 32px; opacity: 0.4; }
+
+    .month-section { margin-bottom: 32px; }
+
+    .month-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .month-name {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .month-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .month-count {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted2);
+      flex-shrink: 0;
+    }
+
+    .month-empty {
+      font-size: 12px;
+      color: var(--muted2);
+      padding: 6px 0;
+      font-style: italic;
+    }
+
+    .event-row {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 4px;
+      overflow: hidden;
+      transition: border-color 0.15s;
+      cursor: pointer;
+    }
+    .event-row:hover { border-color: rgba(255,255,255,0.14); }
+    .event-row.highlighted { border-color: var(--accent); background: var(--accent-dim); }
+
+    .event-summary {
+      display: grid;
+      grid-template-columns: 90px 110px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+    }
+    .event-date {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .event-time {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .event-title {
+      font-size: 13px;
+      font-weight: 400;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .event-chevron {
+      font-size: 10px;
+      color: var(--muted2);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+    .event-row.open .event-chevron { transform: rotate(180deg); }
+
+    .event-detail {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.2s ease;
+    }
+    .event-row.open .event-detail { max-height: 300px; }
+    .event-detail-inner {
+      padding: 0 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+    .detail-line {
+      display: flex;
+      gap: 10px;
+      font-size: 12px;
+    }
+    .detail-key {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      min-width: 80px;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .detail-val {
+      color: var(--text);
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    /* ── Search results panel ────────────────────────────────────────── */
+    #searchPanel {
+      border-top: 1px solid var(--border);
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      flex-shrink: 0;
+    }
+    #searchPanel.open { max-height: 280px; }
+
+    .search-panel-inner {
+      padding: 14px 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+    .search-panel-inner::-webkit-scrollbar { width: 3px; }
+    .search-panel-inner::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+    .search-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .search-panel-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .panel-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 2px;
+      transition: color 0.15s;
+    }
+    .panel-close:hover { color: var(--text); }
+
+    .search-answer {
+      font-size: 13px;
+      line-height: 1.65;
+      color: var(--text);
+    }
+    .search-answer p { margin-bottom: 0.5em; }
+    .search-answer p:last-child { margin-bottom: 0; }
+    .search-answer code {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      background: rgba(255,255,255,0.08);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--accent);
+    }
+    .search-answer strong { font-weight: 500; }
+    .search-loading {
+      display: flex; gap: 5px; align-items: center; padding: 4px 0;
+    }
+    .search-loading span {
+      width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .search-loading span:nth-child(2) { animation-delay: 0.2s; }
+    .search-loading span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes pulse {
+      0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
+      40%          { opacity: 1;   transform: scale(1); }
+    }
+    .search-error { font-size: 12px; color: var(--red); }
+    .search-hits {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted2);
+    }
+
+    /* ── Settings overlay ────────────────────────────────────────────── */
+    #settingsOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    #settingsOverlay.open { opacity: 1; pointer-events: all; }
+
+    .settings-card {
+      background: #1a1a1c;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+      width: 440px;
+      max-width: 90vw;
+    }
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 22px;
+    }
+    .settings-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .settings-section {
+      margin-bottom: 20px;
+    }
+    .settings-section-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    .settings-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .settings-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .settings-row .field-label { margin-bottom: 0; min-width: 90px; }
+
+    .btn-danger {
+      background: none;
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 8px 16px;
+      color: var(--red);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+    .hidden { display: none !important; }
+
+    .status-bar {
+      display: flex;
+      gap: 16px;
+      padding: 6px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .status-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px;
+      color: var(--muted2);
+    }
+    .status-item.ok { color: rgba(111,207,151,0.7); }
+  </style>
+</head>
+<body>
+  <div id="root">
+
+    <!-- Titlebar -->
+    <div id="titlebar">
+      <div class="brand">
+        <div class="brand-dot"></div>
+        <span class="brand-name">CalendarAI</span>
+      </div>
+
+      <div class="year-nav" id="yearNav" style="display:none">
+        <button class="year-btn" onclick="changeYear(-1)">&#8592;</button>
+        <span class="year-label" id="yearLabel">2026</span>
+        <button class="year-btn" onclick="changeYear(1)">&#8594;</button>
+      </div>
+
+      <button class="settings-btn" onclick="toggleSettings()" title="Settings">&#9881;</button>
+
+      <div class="win-controls">
+        <button class="win-btn min" onclick="window.electronAPI.minimizeWindow()" title="Minimise"></button>
+        <button class="win-btn max" onclick="window.electronAPI.maximizeWindow()" title="Maximise"></button>
+        <button class="win-btn cls" onclick="window.electronAPI.closeWindow()" title="Close"></button>
+      </div>
+    </div>
+
+    <!-- Search bar (shown when authenticated) -->
+    <div id="searchBar" class="hidden">
+      <input class="search-input" id="searchInput" type="text"
+        placeholder="Ask about your calendar… e.g. 'What meetings do I have in March?'"
+        autocomplete="off" spellcheck="false"/>
+      <span class="rag-indicator" id="ragIndicator">—</span>
+      <button class="search-btn" id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
+
+    <!-- Main content -->
+    <div id="content">
+
+      <!-- Setup / auth screen -->
+      <div id="setupScreen">
+        <div class="setup-card" id="setupCard">
+          <div class="setup-title" id="setupTitle">Connect Google Calendar</div>
+          <div class="setup-subtitle" id="setupSubtitle">
+            Enter your Google Cloud OAuth credentials to get started.<br>
+            <a href="#" onclick="showSetupHelp()">How do I get these?</a>
+          </div>
+
+          <div class="field-group" id="credFields">
+            <div>
+              <div class="field-label">Google Client ID</div>
+              <input class="field-input" id="clientIdInput" type="text" placeholder="xxxx.apps.googleusercontent.com" autocomplete="off"/>
+            </div>
+            <div>
+              <div class="field-label">Google Client Secret</div>
+              <input class="field-input" id="clientSecretInput" type="password" placeholder="GOCSPX-..." autocomplete="off"/>
+            </div>
+          </div>
+
+          <button class="btn-primary" id="connectBtn" onclick="saveAndConnect()">Connect to Google Calendar</button>
+          <div class="setup-error hidden" id="setupError"></div>
+        </div>
+      </div>
+
+      <!-- Timeline (shown when authenticated) -->
+      <div id="timelineWrap" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div id="timeline">
+          <div class="timeline-empty">
+            <div class="big">&#128197;</div>
+            <div>Loading events&hellip;</div>
+          </div>
+        </div>
+        <div id="searchPanel">
+          <div class="search-panel-inner">
+            <div class="search-panel-header">
+              <span class="search-panel-title" id="searchPanelTitle">AI Search</span>
+              <button class="panel-close" onclick="closeSearchPanel()">&#x2715;</button>
+            </div>
+            <div id="searchResult"></div>
+          </div>
+        </div>
+        <div class="status-bar">
+          <span class="status-item" id="statusEvents">—</span>
+          <span class="status-item" id="statusRAG">RAG: —</span>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+
+  </div><!-- /root -->
+
+  <!-- Settings overlay -->
+  <div id="settingsOverlay" onclick="closeSettingsOnBackdrop(event)">
+    <div class="settings-card">
+      <div class="settings-header">
+        <span class="settings-title">Settings</span>
+        <button class="panel-close" onclick="toggleSettings()">&#x2715;</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Google OAuth</div>
+        <div class="settings-fields">
+          <div>
+            <div class="field-label">Client ID</div>
+            <input class="field-input" id="sClientId" type="text" style="width:100%"/>
+          </div>
+          <div>
+            <div class="field-label">Client Secret</div>
+            <input class="field-input" id="sClientSecret" type="password" style="width:100%"/>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">Ollama</div>
+        <div class="settings-fields">
+          <div>
+            <div class="field-label">Endpoint</div>
+            <input class="field-input" id="sEndpoint" type="text" style="width:100%" placeholder="http://localhost:11434"/>
+          </div>
+          <div>
+            <div class="field-label">Model</div>
+            <input class="field-input" id="sModel" type="text" style="width:100%" placeholder="llama3.2:latest"/>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+      <button class="btn-danger" id="signOutBtn" style="width:100%;margin-top:10px;display:none" onclick="signOut()">Sign Out of Google</button>
+    </div>
+  </div>
+
+  <script>
+    if (typeof marked !== 'undefined') {
+      marked.setOptions({ breaks: true, gfm: true });
+    }
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let currentYear = new Date().getFullYear();
+    let allEvents   = [];
+    let highlightedIds = new Set();
+    let isAuthenticated = false;
+
+    const MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+    // ── Init ───────────────────────────────────────────────────────────────
+    async function init() {
+      const cfg = await window.electronAPI.getConfig();
+      populateSettingsForm(cfg);
+
+      // Listen for RAG progress events from main process
+      window.electronAPI.onRagProgress((p) => {
+        updateRAGIndicator({ indexing: true, progress: p });
+      });
+
+      const { hasCredentials, isAuthenticated: authed } = await window.electronAPI.authStatus();
+      isAuthenticated = authed;
+
+      if (!hasCredentials) {
+        showSetup();
+      } else if (!authed) {
+        showConnectButton();
+      } else {
+        showMainView();
+        loadEvents();
+      }
+    }
+
+    // ── Screen management ──────────────────────────────────────────────────
+    function showSetup() {
+      document.getElementById('setupScreen').classList.remove('hidden');
+      document.getElementById('timelineWrap').classList.add('hidden');
+      document.getElementById('searchBar').classList.add('hidden');
+      document.getElementById('yearNav').style.display = 'none';
+      document.getElementById('setupTitle').textContent = 'Connect Google Calendar';
+      document.getElementById('setupSubtitle').innerHTML =
+        'Enter your Google Cloud OAuth credentials to get started.<br><a href="#" onclick="showSetupHelp()">How do I get these?</a>';
+      document.getElementById('credFields').classList.remove('hidden');
+      document.getElementById('connectBtn').textContent = 'Connect to Google Calendar';
+      document.getElementById('connectBtn').onclick = saveAndConnect;
+    }
+
+    function showConnectButton() {
+      document.getElementById('setupScreen').classList.remove('hidden');
+      document.getElementById('timelineWrap').classList.add('hidden');
+      document.getElementById('searchBar').classList.add('hidden');
+      document.getElementById('yearNav').style.display = 'none';
+      document.getElementById('setupTitle').textContent = 'Sign in to Google';
+      document.getElementById('setupSubtitle').innerHTML =
+        'Credentials saved. Click below to authorise access to your Google Calendar.';
+      document.getElementById('credFields').classList.add('hidden');
+      document.getElementById('connectBtn').textContent = 'Authorise with Google';
+      document.getElementById('connectBtn').onclick = connectGoogle;
+    }
+
+    function showMainView() {
+      document.getElementById('setupScreen').classList.add('hidden');
+      document.getElementById('timelineWrap').classList.remove('hidden');
+      document.getElementById('timelineWrap').style.display = 'flex';
+      document.getElementById('searchBar').classList.remove('hidden');
+      document.getElementById('yearNav').style.display = 'flex';
+      document.getElementById('yearLabel').textContent = currentYear;
+      document.getElementById('signOutBtn').style.display = 'block';
+    }
+
+    // ── Auth ───────────────────────────────────────────────────────────────
+    async function saveAndConnect() {
+      const clientId     = document.getElementById('clientIdInput').value.trim();
+      const clientSecret = document.getElementById('clientSecretInput').value.trim();
+      if (!clientId || !clientSecret) {
+        showSetupError('Both Client ID and Client Secret are required.');
+        return;
+      }
+      const cfg = await window.electronAPI.getConfig();
+      await window.electronAPI.saveConfig({ ...cfg, clientId, clientSecret });
+      document.getElementById('sClientId').value = clientId;
+      document.getElementById('sClientSecret').value = clientSecret;
+      await connectGoogle();
+    }
+
+    async function connectGoogle() {
+      const btn = document.getElementById('connectBtn');
+      btn.textContent = 'Opening browser…';
+      btn.disabled = true;
+      hideSetupError();
+
+      const result = await window.electronAPI.authenticate();
+      if (result?.success) {
+        isAuthenticated = true;
+        showMainView();
+        loadEvents();
+      } else {
+        showSetupError(result?.error || 'Authentication failed.');
+        btn.textContent = 'Authorise with Google';
+        btn.disabled = false;
+      }
+    }
+
+    async function signOut() {
+      await window.electronAPI.signOut();
+      isAuthenticated = false;
+      allEvents = [];
+      highlightedIds.clear();
+      closeSettingsOverlay();
+      document.getElementById('signOutBtn').style.display = 'none';
+      showConnectButton();
+    }
+
+    // ── Events ─────────────────────────────────────────────────────────────
+    async function loadEvents() {
+      renderTimelineLoading();
+      updateStatus({ events: '—', rag: 'Indexing…' });
+
+      const result = await window.electronAPI.getEvents(currentYear);
+      if (result.error) {
+        renderTimelineError(result.error);
+        return;
+      }
+
+      allEvents = result.events || [];
+      renderTimeline(allEvents);
+      updateStatus({ events: `${allEvents.length} events` });
+      pollRAGStatus();
+    }
+
+    function changeYear(delta) {
+      currentYear += delta;
+      document.getElementById('yearLabel').textContent = currentYear;
+      highlightedIds.clear();
+      closeSearchPanel();
+      loadEvents();
+    }
+
+    // ── RAG status polling ─────────────────────────────────────────────────
+    function pollRAGStatus() {
+      const interval = setInterval(async () => {
+        const s = await window.electronAPI.ragStatus();
+        updateRAGIndicator(s);
+        if (!s.indexing) {
+          clearInterval(interval);
+          if (s.lastError) {
+            updateStatus({ rag: `RAG error` });
+          } else {
+            updateStatus({ rag: `RAG ready · ${s.count} events` });
+          }
+        }
+      }, 1500);
+    }
+
+    function updateRAGIndicator(s) {
+      const el = document.getElementById('ragIndicator');
+      if (s.indexing) {
+        const pct = s.progress?.total ? Math.round((s.progress.current / s.progress.total) * 100) : 0;
+        el.textContent = `Indexing ${pct}%`;
+        el.className = 'rag-indicator indexing';
+      } else if (s.lastError) {
+        el.textContent = 'RAG error';
+        el.className = 'rag-indicator error';
+      } else if (s.indexed) {
+        el.textContent = `${s.count} indexed`;
+        el.className = 'rag-indicator ready';
+      } else {
+        el.textContent = '—';
+        el.className = 'rag-indicator';
+      }
+    }
+
+    // ── Timeline rendering ─────────────────────────────────────────────────
+    function renderTimelineLoading() {
+      document.getElementById('timeline').innerHTML =
+        `<div class="timeline-empty"><div class="big">&#128197;</div><div>Loading events&hellip;</div></div>`;
+    }
+
+    function renderTimelineError(msg) {
+      document.getElementById('timeline').innerHTML =
+        `<div class="timeline-empty"><div class="big">&#9888;</div><div style="color:var(--red)">${escHtml(msg)}</div></div>`;
+    }
+
+    function renderTimeline(events) {
+      const grouped = groupByMonth(events);
+      const el = document.getElementById('timeline');
+
+      if (events.length === 0) {
+        el.innerHTML = `<div class="timeline-empty"><div class="big">&#128197;</div><div>No events in ${currentYear}</div></div>`;
+        return;
+      }
+
+      // Build a set of month keys that have events
+      const monthMap = {};
+      grouped.forEach(g => { monthMap[g.month] = g; });
+
+      let html = '';
+      for (let m = 0; m < 12; m++) {
+        const group = monthMap[m];
+        html += `<div class="month-section">`;
+        html += `<div class="month-header">
+          <span class="month-name">${MONTHS[m]}</span>
+          <div class="month-line"></div>
+          <span class="month-count">${group ? group.events.length + ' event' + (group.events.length !== 1 ? 's' : '') : ''}</span>
+        </div>`;
+        if (!group) {
+          html += `<div class="month-empty">No events</div>`;
+        } else {
+          group.events.forEach(ev => { html += renderEventRow(ev); });
+        }
+        html += `</div>`;
+      }
+      el.innerHTML = html;
+    }
+
+    function renderEventRow(event) {
+      const { dateStr, timeStr } = formatEvent(event);
+      const title = escHtml(event.summary || '(No title)');
+      const id = escHtml(event.id || '');
+      const highlighted = highlightedIds.has(event.id) ? ' highlighted' : '';
+
+      let detail = '';
+      if (event.location) detail += detailLine('Location', event.location);
+      if (event.description) {
+        const plain = event.description.replace(/<[^>]*>/g, '').trim();
+        if (plain) detail += detailLine('Description', plain.substring(0, 400) + (plain.length > 400 ? '…' : ''));
+      }
+      if (event.attendees?.length) {
+        detail += detailLine('Attendees', event.attendees.map(a => a.displayName || a.email).join(', '));
+      }
+      const startFull = event.start?.dateTime || event.start?.date || '';
+      const endFull   = event.end?.dateTime   || event.end?.date   || '';
+      if (startFull) detail += detailLine('Start', formatFull(startFull));
+      if (endFull)   detail += detailLine('End',   formatFull(endFull));
+
+      return `<div class="event-row${highlighted}" data-id="${id}" onclick="toggleEventRow(this)">
+        <div class="event-summary">
+          <span class="event-date">${dateStr}</span>
+          <span class="event-time">${timeStr}</span>
+          <span class="event-title">${title}</span>
+          <span class="event-chevron">&#9660;</span>
+        </div>
+        <div class="event-detail">
+          <div class="event-detail-inner">${detail || '<span style="color:var(--muted2);font-size:12px">No additional details</span>'}</div>
+        </div>
+      </div>`;
+    }
+
+    function detailLine(key, val) {
+      return `<div class="detail-line">
+        <span class="detail-key">${escHtml(key)}</span>
+        <span class="detail-val">${escHtml(val)}</span>
+      </div>`;
+    }
+
+    function toggleEventRow(el) {
+      el.classList.toggle('open');
+    }
+
+    // ── Search ────────────────────────────────────────────────────────────
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && document.activeElement === document.getElementById('searchInput')) {
+        doSearch();
+      }
+    });
+
+    async function doSearch() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) return;
+
+      const btn = document.getElementById('searchBtn');
+      btn.disabled = true;
+      openSearchPanel();
+      document.getElementById('searchResult').innerHTML =
+        `<div class="search-loading"><span></span><span></span><span></span></div>`;
+      document.getElementById('searchPanelTitle').textContent = 'Searching…';
+
+      const result = await window.electronAPI.search({ query });
+
+      if (result.error) {
+        document.getElementById('searchResult').innerHTML =
+          `<div class="search-error">&#9888; ${escHtml(result.error)}</div>`;
+        document.getElementById('searchPanelTitle').textContent = 'Error';
+      } else {
+        const answerHtml = typeof marked !== 'undefined'
+          ? marked.parse(result.answer || '')
+          : escHtml(result.answer || '');
+
+        const hitIds = (result.events || []).map(e => e.id);
+        const hitsNote = hitIds.length
+          ? `<div class="search-hits" style="margin-top:8px">Based on ${hitIds.length} relevant event${hitIds.length !== 1 ? 's' : ''}</div>`
+          : '';
+
+        document.getElementById('searchResult').innerHTML =
+          `<div class="search-answer">${answerHtml}</div>${hitsNote}`;
+        document.getElementById('searchPanelTitle').textContent = 'AI Answer';
+
+        // Highlight matched events in timeline
+        highlightedIds = new Set(hitIds);
+        refreshHighlights();
+      }
+
+      btn.disabled = false;
+    }
+
+    function refreshHighlights() {
+      document.querySelectorAll('.event-row').forEach(el => {
+        const id = el.dataset.id;
+        el.classList.toggle('highlighted', highlightedIds.has(id));
+      });
+      // Scroll first highlighted event into view
+      const first = document.querySelector('.event-row.highlighted');
+      if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function openSearchPanel() {
+      document.getElementById('searchPanel').classList.add('open');
+    }
+
+    function closeSearchPanel() {
+      document.getElementById('searchPanel').classList.remove('open');
+      highlightedIds.clear();
+      document.querySelectorAll('.event-row.highlighted').forEach(el => el.classList.remove('highlighted'));
+    }
+
+    // ── Settings ──────────────────────────────────────────────────────────
+    function toggleSettings() {
+      document.getElementById('settingsOverlay').classList.toggle('open');
+    }
+
+    function closeSettingsOverlay() {
+      document.getElementById('settingsOverlay').classList.remove('open');
+    }
+
+    function closeSettingsOnBackdrop(e) {
+      if (e.target === document.getElementById('settingsOverlay')) closeSettingsOverlay();
+    }
+
+    function populateSettingsForm(cfg) {
+      document.getElementById('sClientId').value     = cfg.clientId     || '';
+      document.getElementById('sClientSecret').value = cfg.clientSecret || '';
+      document.getElementById('sEndpoint').value     = cfg.endpoint     || '';
+      document.getElementById('sModel').value        = cfg.model        || '';
+    }
+
+    async function saveSettings() {
+      const cfg = await window.electronAPI.getConfig();
+      await window.electronAPI.saveConfig({
+        ...cfg,
+        clientId:     document.getElementById('sClientId').value.trim(),
+        clientSecret: document.getElementById('sClientSecret').value.trim(),
+        endpoint:     document.getElementById('sEndpoint').value.trim(),
+        model:        document.getElementById('sModel').value.trim()
+      });
+      closeSettingsOverlay();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function groupByMonth(events) {
+      const map = {};
+      events.forEach(ev => {
+        const raw = ev.start?.dateTime || ev.start?.date;
+        if (!raw) return;
+        const d = new Date(raw);
+        const m = d.getMonth();
+        if (!map[m]) map[m] = { month: m, events: [] };
+        map[m].events.push(ev);
+      });
+      return Object.values(map).sort((a, b) => a.month - b.month);
+    }
+
+    function formatEvent(event) {
+      const startRaw = event.start?.dateTime || event.start?.date;
+      const endRaw   = event.end?.dateTime   || event.end?.date;
+      const isAllDay = !event.start?.dateTime;
+      const start    = new Date(startRaw);
+
+      const day  = start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+      const mon  = start.toLocaleDateString('en-GB', { month: 'short' });
+      const dateStr = `${day} ${mon}`;
+
+      let timeStr = 'All day';
+      if (!isAllDay) {
+        const end = new Date(endRaw);
+        timeStr = `${fmtTime(start)} – ${fmtTime(end)}`;
+      }
+      return { dateStr, timeStr };
+    }
+
+    function fmtTime(d) {
+      return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    }
+
+    function formatFull(raw) {
+      const d = new Date(raw);
+      if (isNaN(d)) return raw;
+      return d.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+    }
+
+    function updateStatus({ events, rag } = {}) {
+      if (events !== undefined) document.getElementById('statusEvents').textContent = events;
+      if (rag !== undefined)    document.getElementById('statusRAG').textContent = rag;
+    }
+
+    function showSetupError(msg) {
+      const el = document.getElementById('setupError');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+    }
+
+    function hideSetupError() {
+      document.getElementById('setupError').classList.add('hidden');
+    }
+
+    function showSetupHelp() {
+      alert(
+        'To get Google OAuth credentials:\n\n' +
+        '1. Go to console.cloud.google.com\n' +
+        '2. Create a new project (or select an existing one)\n' +
+        '3. Go to APIs & Services → Enable APIs → search "Google Calendar API" and enable it\n' +
+        '4. Go to APIs & Services → Credentials → Create Credentials → OAuth client ID\n' +
+        '5. Choose "Desktop app" as the application type\n' +
+        '6. Add "http://127.0.0.1" as an Authorised Redirect URI\n' +
+        '7. Copy the Client ID and Client Secret and paste them here\n\n' +
+        'You may also need to add your Google account as a Test User under OAuth consent screen.'
+      );
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // ── Boot ───────────────────────────────────────────────────────────────
+    init();
+  </script>
+</body>
+</html>
