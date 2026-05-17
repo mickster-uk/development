@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, shell } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -18,6 +18,14 @@ function loadConfig() {
     return JSON.parse(fs.readFileSync(getConfigPath(), 'utf8'));
   } catch {
     return {};
+  }
+}
+
+function saveConfig(data) {
+  try {
+    fs.writeFileSync(getConfigPath(), JSON.stringify(data, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to save config:', e);
   }
 }
 
@@ -115,6 +123,8 @@ ipcMain.handle('rag-index', async () => {
   if (!ragService) return;
   return ragService.index();
 });
+
+ipcMain.handle('open-knowledge-folder', () => shell.openPath(KNOWLEDGE_PATH));
 
 // ── API call ──────────────────────────────────────────────────────────────
 ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) => {

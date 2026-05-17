@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   closeApp: () => ipcRenderer.send('close-app'),
   hideApp: () => ipcRenderer.send('hide-app'),
   ragStatus: () => ipcRenderer.invoke('rag-status'),
-  ragIndex: () => ipcRenderer.invoke('rag-index')
+  ragIndex: () => ipcRenderer.invoke('rag-index'),
+  openKnowledgeFolder: () => ipcRenderer.invoke('open-knowledge-folder')
 });

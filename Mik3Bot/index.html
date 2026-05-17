@@ -134,7 +134,7 @@
       overflow: hidden; max-height: 0;
       transition: max-height 0.25s ease;
     }
-    .settings-area.open { max-height: 130px; }
+    .settings-area.open { max-height: 300px; }
 
     .settings-row {
       display: flex; flex-direction: column; gap: 5px;
@@ -316,6 +316,40 @@
       color: var(--text-muted); cursor: pointer; transition: all 0.15s;
     }
     .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+    .rag-section {
+      padding: 6px 12px 10px;
+      border-top: 1px solid var(--border);
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .rag-row { display: flex; align-items: center; gap: 6px; }
+    .rag-path {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); flex: 1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .rag-link {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--accent); background: none; border: none;
+      cursor: pointer; padding: 0; opacity: 0.8;
+      text-decoration: underline; text-underline-offset: 2px;
+      transition: opacity 0.15s;
+    }
+    .rag-link:hover { opacity: 1; }
+    .rag-status-text {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); flex: 1;
+    }
+    .rag-status-text.ok   { color: #6fcf97; }
+    .rag-status-text.err  { color: #ff6b6b; }
+    .rag-status-text.idle { color: var(--text-muted); }
+    .reindex-btn {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 8px; font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--text-muted); cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+    }
+    .reindex-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .reindex-btn:disabled { opacity: 0.4; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -384,6 +418,18 @@
               </span>
               <span class="settings-label" style="opacity:1;">store history</span>
             </label>
+          </div>
+        </div>
+        <div class="rag-section">
+          <div class="rag-row">
+            <span class="settings-label">knowledge</span>
+            <span class="rag-path" id="ragPath">—</span>
+            <button class="rag-link" onclick="openKnowledgeFolder()">open ↗</button>
+          </div>
+          <div class="rag-row">
+            <span class="settings-label">rag</span>
+            <span class="rag-status-text idle" id="ragStatusText">checking…</span>
+            <button class="reindex-btn" id="reindexBtn" onclick="reindex()">re-index</button>
           </div>
         </div>
       </div>
@@ -457,10 +503,52 @@
 
     sendBtn.addEventListener('click', sendPrompt);
 
+    async function refreshRAGStatus() {
+      const statusEl = document.getElementById('ragStatusText');
+      const pathEl   = document.getElementById('ragPath');
+      try {
+        const s = await window.electronAPI.ragStatus();
+        if (s.knowledgePath) pathEl.textContent = s.knowledgePath;
+        if (s.lastError) {
+          statusEl.textContent = s.lastError;
+          statusEl.className = 'rag-status-text err';
+        } else if (s.indexed && s.chunkCount > 0) {
+          statusEl.textContent = `indexed • ${s.chunkCount} chunks / ${s.fileCount} file${s.fileCount !== 1 ? 's' : ''}`;
+          statusEl.className = 'rag-status-text ok';
+        } else if (s.indexed) {
+          statusEl.textContent = 'indexed • no files in knowledge folder';
+          statusEl.className = 'rag-status-text idle';
+        } else {
+          statusEl.textContent = 'not indexed';
+          statusEl.className = 'rag-status-text idle';
+        }
+      } catch {
+        statusEl.textContent = 'unavailable';
+        statusEl.className = 'rag-status-text err';
+      }
+    }
+
+    async function reindex() {
+      const btn = document.getElementById('reindexBtn');
+      const statusEl = document.getElementById('ragStatusText');
+      btn.disabled = true;
+      statusEl.textContent = 'indexing…';
+      statusEl.className = 'rag-status-text idle';
+      await window.electronAPI.ragIndex();
+      await refreshRAGStatus();
+      btn.disabled = false;
+    }
+
+    function openKnowledgeFolder() {
+      window.electronAPI.openKnowledgeFolder();
+    }
+
     function toggleSettings() {
       settingsOpen = !settingsOpen;
       settingsArea.classList.toggle('open', settingsOpen);
+      if (settingsOpen) refreshRAGStatus();
       updateWindowHeight();
+      setTimeout(updateWindowHeight, 280); // re-measure after 250ms transition
     }
 
     function closeResponse() {
