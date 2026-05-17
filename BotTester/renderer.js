@@ -438,7 +438,7 @@ async function runTest() {
       reformulated, model2, endpoint, responseConfig
     );
     setBotActive(2, false);
-    bot2Response.textContent = responseText;
+    bot2Response.innerHTML = marked.parse(responseText);
     bot2Response.classList.remove('empty');
 
     // Step 3: Bot 3 — evaluate
@@ -521,7 +521,7 @@ function displayEvaluationResult(result) {
 function displayTestResult(result) {
   bot1Query.textContent = result.query;
   bot1Query.classList.remove('empty', 'generating');
-  bot2Response.textContent = result.bot2Response;
+  bot2Response.innerHTML = marked.parse(result.bot2Response);
   bot2Response.classList.remove('empty', 'generating');
   displayEvaluationResult(result);
 }
