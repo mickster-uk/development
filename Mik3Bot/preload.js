@@ -11,4 +11,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   ragStatus: () => ipcRenderer.invoke('rag-status'),
   ragIndex: () => ipcRenderer.invoke('rag-index'),
   openKnowledgeFolder: () => ipcRenderer.invoke('open-knowledge-folder')
+  ,showHistoryInFinder: () => ipcRenderer.invoke('show-history-in-finder')
 });

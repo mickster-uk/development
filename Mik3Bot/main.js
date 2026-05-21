@@ -125,6 +125,7 @@ ipcMain.handle('rag-index', async () => {
 });
 
 ipcMain.handle('open-knowledge-folder', () => shell.openPath(KNOWLEDGE_PATH));
+ipcMain.handle('show-history-in-finder', () => shell.showItemInFolder(getHistoryPath()));
 
 // ── API call ──────────────────────────────────────────────────────────────
 ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) => {

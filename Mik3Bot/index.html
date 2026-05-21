@@ -426,6 +426,11 @@
             <span class="rag-path" id="ragPath">—</span>
             <button class="rag-link" onclick="openKnowledgeFolder()">open ↗</button>
           </div>
+          <div class="rag-row" style="margin-top:6px;">
+            <span class="settings-label">history</span>
+            <span class="rag-path">history.json</span>
+            <button class="rag-link" onclick="showHistoryInFinder()">show in Finder ↗</button>
+          </div>
           <div class="rag-row">
             <span class="settings-label">rag</span>
             <span class="rag-status-text idle" id="ragStatusText">checking…</span>
@@ -541,6 +546,9 @@
 
     function openKnowledgeFolder() {
       window.electronAPI.openKnowledgeFolder();
+    }
+    function showHistoryInFinder() {
+      window.electronAPI.showHistoryInFinder();
     }
 
     function toggleSettings() {
