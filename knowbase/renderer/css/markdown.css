@@ -345,20 +345,17 @@
 }
 
 .markdown-body .mermaid-canvas {
-  display: flex;
-  justify-content: center;
-  padding: 20px 16px 8px;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-solid) transparent;
+  /* height / overflow / cursor are set per-diagram by JS */
+  background: transparent;
+  touch-action: none;   /* allow wheel zoom without page scroll */
 }
-.markdown-body .mermaid-canvas::-webkit-scrollbar       { height: 5px; }
-.markdown-body .mermaid-canvas::-webkit-scrollbar-thumb { background: var(--border-solid); border-radius: 3px; }
+.markdown-body .mermaid-canvas.dragging {
+  cursor: grabbing !important;
+}
 
 .markdown-body .mermaid-diagram svg {
-  border-radius: 4px;
-  flex-shrink: 0;
+  /* position / size / transform set by JS */
+  will-change: transform;
 }
 
 .markdown-body .mermaid-loading {
