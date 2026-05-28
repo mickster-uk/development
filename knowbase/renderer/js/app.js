@@ -1,0 +1,608 @@
+/* ── Markdown Reader – renderer ───────────────────────────────────────────── */
+'use strict';
+
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  platform:       'darwin',
+  isDark:         false,
+  isPinned:       false,
+  sidebarVisible: true,
+  currentFolder:  null,
+  currentFile:    null,
+  tree:           [],
+  sidebarWidth:   220,
+  // Editor
+  isEditing:      false,
+  isDirty:        false,
+  editorContent:  '',
+};
+
+// ─── DOM refs ─────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const el = {
+  shell:          $('app-shell'),
+  tbTitle:        $('tb-title'),
+  btnSidebarToggle: $('btn-sidebar-toggle'),
+  btnTheme:       $('btn-theme'),
+  iconSun:        $('icon-sun'),
+  iconMoon:       $('icon-moon'),
+  btnPin:         $('btn-pin'),
+  btnHide:        $('btn-hide'),
+  sidebar:        $('sidebar'),
+  sidebarResizer: $('sidebar-resizer'),
+  fileTree:       $('file-tree'),
+  emptyHint:      $('empty-hint'),
+  btnOpenFolder:  $('btn-open-folder'),
+  btnNewFile:     $('btn-new-file'),
+  content:        $('content'),
+  welcome:        $('welcome'),
+  mdScroll:       $('md-scroll'),
+  mdBody:         $('markdown-body'),
+  ctBar:          $('ct-bar'),
+  ctFile:         $('ct-file'),
+  btnEditMode:    $('btn-edit-mode'),
+  btnSave:        $('btn-save'),
+  btnViewMode:    $('btn-view-mode'),
+  editorWrap:     $('editor-wrap'),
+  mdEditor:       $('md-editor'),
+  statusFile:     $('status-file'),
+  statusMeta:     $('status-meta'),
+  hlTheme:        $('hljs-theme'),
+  kbdShortcut:    $('kbd-shortcut'),
+  edgeResize:     $('edge-resize'),
+  tbVersion:      $('tb-version'),
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  state.platform = await api.getPlatform();
+
+  if (state.platform === 'darwin') {
+    document.documentElement.classList.add('platform-macos');
+    el.kbdShortcut.textContent = '⌘⇧M';
+  } else {
+    el.kbdShortcut.textContent = 'Ctrl+Shift+M';
+  }
+
+  // Version badge
+  const ver = await api.getVersion();
+  if (el.tbVersion) el.tbVersion.textContent = 'v' + ver;
+
+  const cfg = await api.getConfig();
+
+  // Theme
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(cfg.dark !== undefined ? cfg.dark : prefersDark, false);
+
+  // Sidebar width
+  if (cfg.sidebarWidth) {
+    state.sidebarWidth = cfg.sidebarWidth;
+    el.sidebar.style.width = state.sidebarWidth + 'px';
+  }
+
+  if (cfg.sidebarVisible === false) setSidebarVisible(false, false);
+  if (cfg.pinned)                   setPinned(true, false);
+
+  bindEvents();
+
+  api.onRestoreFolder(path => loadFolder(path));
+  if (cfg.lastFolder) loadFolder(cfg.lastFolder);
+}
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+function applyTheme(dark, save = true) {
+  state.isDark = dark;
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+
+  const base = '../node_modules/highlight.js/styles/';
+  el.hlTheme.href = dark ? base + 'github-dark.min.css' : base + 'github.min.css';
+
+  el.iconSun.style.display  = dark ? 'none' : '';
+  el.iconMoon.style.display = dark ? ''     : 'none';
+
+  if (save) api.saveConfig({ dark });
+}
+function toggleTheme() { applyTheme(!state.isDark); }
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+function setSidebarVisible(visible, save = true) {
+  state.sidebarVisible = visible;
+  if (visible) {
+    el.sidebar.classList.remove('collapsed');
+    el.sidebar.style.width = state.sidebarWidth + 'px';
+  } else {
+    el.sidebar.classList.add('collapsed');
+  }
+  if (save) api.saveConfig({ sidebarVisible: visible });
+}
+function toggleSidebar() { setSidebarVisible(!state.sidebarVisible); }
+
+// ─── Pin ──────────────────────────────────────────────────────────────────────
+function setPinned(pinned, save = true) {
+  state.isPinned = pinned;
+  el.btnPin.dataset.pinned = String(pinned);
+  el.btnPin.title = pinned ? 'Unpin from top' : 'Pin on top';
+  api.setAlwaysOnTop(pinned);
+  if (save) api.saveConfig({ pinned });
+}
+function togglePin() { setPinned(!state.isPinned); }
+
+// ─── Open folder ─────────────────────────────────────────────────────────────
+async function openFolderDialog() {
+  const res = await api.openFolderDialog();
+  if (res.success) loadFolder(res.folderPath);
+}
+
+async function loadFolder(folderPath) {
+  state.currentFolder = folderPath;
+  const folderName = folderPath.split(/[/\\]/).pop() || folderPath;
+  el.tbTitle.textContent = folderName;
+  el.btnNewFile.disabled = false;
+
+  const res = await api.readDirectory(folderPath);
+  if (!res.success) { showError('Could not read folder: ' + res.error); return; }
+
+  state.tree = res.tree;
+  renderFileTree(res.tree, el.fileTree);
+  api.saveConfig({ lastFolder: folderPath });
+}
+
+// ─── File tree ────────────────────────────────────────────────────────────────
+function renderFileTree(tree, container) {
+  container.innerHTML = '';
+  if (!tree || tree.length === 0) {
+    el.emptyHint.style.display = 'flex';
+    container.appendChild(el.emptyHint);
+    return;
+  }
+  el.emptyHint.style.display = 'none';
+  container.appendChild(buildTreeUL(tree, 0));
+}
+
+function buildTreeUL(items, depth) {
+  const ul = document.createElement('ul');
+  ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+  for (const item of items) ul.appendChild(buildTreeItem(item, depth));
+  return ul;
+}
+
+function buildTreeItem(item, depth) {
+  const li = document.createElement('li');
+
+  if (item.type === 'directory') {
+    li.className = 'tree-dir';
+
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (6 + depth * 14) + 'px';
+
+    row.appendChild(svgIcon(`<polyline points="9,6 15,12 9,18"/>`, 'tree-caret'));
+    row.appendChild(svgIcon(`<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>`, null, '#facc15'));
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = item.name;
+    row.appendChild(label);
+
+    // "+ new file" button (visible on row hover)
+    const newBtn = document.createElement('button');
+    newBtn.className = 'new-in-dir-btn';
+    newBtn.title = 'New file here';
+    newBtn.appendChild(svgIcon(`<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`));
+    row.appendChild(newBtn);
+
+    li.appendChild(row);
+
+    const children = buildTreeUL(item.children || [], depth + 1);
+    children.setAttribute('class', 'tree-children');
+    li.appendChild(children);
+
+    row.addEventListener('click', e => {
+      if (e.target.closest('.new-in-dir-btn')) return;
+      li.classList.toggle('open');
+    });
+
+    newBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      li.classList.add('open');            // expand first
+      showInlineNewFileInput(children, item.path, depth + 1);
+    });
+
+  } else {
+    li.className = 'tree-file';
+    const row = document.createElement('div');
+    row.className = 'tree-row';
+    row.style.paddingLeft = (6 + depth * 14 + 12) + 'px';
+    row.dataset.path = item.path;
+
+    row.appendChild(svgIcon(fileIconPath(item.name), null, 'var(--text-accent)'));
+
+    const label = document.createElement('span');
+    label.className = 'tree-label';
+    label.textContent = item.name;
+    row.appendChild(label);
+
+    li.appendChild(row);
+
+    row.addEventListener('click', () => {
+      // Warn about unsaved changes
+      if (state.isDirty && !confirm('You have unsaved changes. Discard and open this file?')) return;
+      document.querySelectorAll('.tree-row.active').forEach(r => r.classList.remove('active'));
+      row.classList.add('active');
+      openFile(item.path);
+    });
+
+    if (state.currentFile === item.path) row.classList.add('active');
+  }
+
+  return li;
+}
+
+// ─── Inline new-file input ────────────────────────────────────────────────────
+function showInlineNewFileInput(childrenUL, dirPath, depth) {
+  // Only one at a time
+  if (childrenUL.querySelector('.new-file-input-row')) return;
+
+  const row = document.createElement('div');
+  row.className = 'new-file-input-row';
+  row.style.paddingLeft = (6 + depth * 14 + 12) + 'px';
+
+  const icon = svgIcon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>`, null, 'var(--text-accent)');
+  icon.style.cssText = 'width:14px;height:14px;flex-shrink:0';
+  row.appendChild(icon);
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'new-file-input';
+  input.placeholder = 'filename.md';
+  row.appendChild(input);
+
+  childrenUL.insertBefore(row, childrenUL.firstChild);
+  input.focus();
+
+  async function confirmCreate() {
+    let name = input.value.trim();
+    if (!name) { row.remove(); return; }
+    if (!/\.\w+$/.test(name)) name += '.md';
+    const sep   = dirPath.includes('\\') ? '\\' : '/';
+    const fpath = dirPath.replace(/[/\\]+$/, '') + sep + name;
+    row.remove();
+
+    const res = await api.createFile(fpath);
+    if (res.success) {
+      await loadFolder(state.currentFolder);
+      await openFile(fpath);
+      enterEditMode();
+    } else {
+      showError('Could not create file: ' + res.error);
+    }
+  }
+
+  input.addEventListener('keydown', e => {
+    e.stopPropagation();
+    if (e.key === 'Enter')  confirmCreate();
+    if (e.key === 'Escape') row.remove();
+  });
+  input.addEventListener('blur', () => setTimeout(() => { if (row.parentNode) row.remove(); }, 200));
+}
+
+// Trigger new-file at root level (from top + button)
+async function newFileAtRoot() {
+  if (!state.currentFolder) return;
+  // Find the root UL in the file tree
+  const rootUL = el.fileTree.querySelector('ul');
+  if (rootUL) {
+    showInlineNewFileInput(rootUL, state.currentFolder, 0);
+  } else {
+    // Tree might be empty – show input directly in the container
+    el.fileTree.innerHTML = '';
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+    el.fileTree.appendChild(ul);
+    showInlineNewFileInput(ul, state.currentFolder, 0);
+  }
+}
+
+// ─── Open & render file ───────────────────────────────────────────────────────
+async function openFile(filePath) {
+  if (state.isEditing) enterViewMode(false);   // exit edit without saving
+  state.currentFile    = filePath;
+  state.isDirty        = false;
+
+  const res = await api.readFile(filePath);
+  if (!res.success) { showError('Could not read file: ' + res.error); return; }
+
+  state.editorContent  = res.content;
+
+  renderMarkdown(api.parseMarkdown(res.content));
+  updateStatusBar(res);
+  updateCtBar();
+}
+
+function renderMarkdown(html) {
+  el.welcome.style.display  = 'none';
+  el.mdScroll.style.display = '';
+  el.mdBody.innerHTML       = html;
+
+  // Copy buttons
+  el.mdBody.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const code = decodeURIComponent(btn.dataset.code || '');
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.classList.add('copied');
+        btn.title = 'Copied!';
+        setTimeout(() => { btn.classList.remove('copied'); btn.title = 'Copy'; }, 1800);
+      } catch (_) {}
+    });
+  });
+
+  // External links
+  el.mdBody.querySelectorAll('a.ext-link').forEach(a => {
+    a.addEventListener('click', e => { e.preventDefault(); api.openExternal(a.dataset.url); });
+  });
+
+  // Internal / relative links
+  el.mdBody.querySelectorAll('a.int-link').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const href = a.dataset.href;
+      if (!href) return;
+      if (href.startsWith('#')) {
+        const target = el.mdBody.querySelector(href);
+        if (target) target.scrollIntoView({ behavior: 'smooth' });
+        return;
+      }
+      if (state.currentFile) {
+        const dir      = state.currentFile.replace(/[/\\][^/\\]+$/, '');
+        const resolved = dir + '/' + href;
+        openFile(resolved);
+      }
+    });
+  });
+
+  el.mdScroll.scrollTop = 0;
+}
+
+// ─── Edit mode ────────────────────────────────────────────────────────────────
+function enterEditMode() {
+  state.isEditing = true;
+
+  el.mdScroll.style.display   = 'none';
+  el.editorWrap.style.display = '';
+  el.mdEditor.value           = state.editorContent;
+  el.mdEditor.focus();
+
+  el.btnEditMode.style.display  = 'none';
+  el.btnSave.style.display      = '';
+  el.btnViewMode.style.display  = '';
+
+  updateCtBar();
+  setupEditorTabKey();
+}
+
+function enterViewMode(andSave = false) {
+  if (andSave && state.isDirty) saveCurrentFile();
+
+  // Sync content back
+  if (state.isEditing) state.editorContent = el.mdEditor.value;
+
+  state.isEditing = false;
+
+  // Re-render if content changed
+  renderMarkdown(api.parseMarkdown(state.editorContent));
+
+  el.editorWrap.style.display = 'none';
+  el.mdScroll.style.display   = '';
+
+  el.btnEditMode.style.display  = '';
+  el.btnSave.style.display      = 'none';
+  el.btnViewMode.style.display  = 'none';
+
+  setDirty(false);
+  updateCtBar();
+}
+
+function toggleEditView() {
+  state.isEditing ? enterViewMode(false) : enterEditMode();
+}
+
+async function saveCurrentFile() {
+  if (!state.currentFile) return;
+  const content = el.mdEditor.value;
+  const res     = await api.writeFile(state.currentFile, content);
+  if (res.success) {
+    state.editorContent = content;
+    setDirty(false);
+    updateStatusBar({ filePath: state.currentFile, size: res.size, modified: res.modified });
+  } else {
+    showError('Save failed: ' + res.error);
+  }
+}
+
+function setDirty(dirty) {
+  state.isDirty = dirty;
+  el.ctFile.classList.toggle('dirty', dirty);
+}
+
+function updateCtBar() {
+  if (!state.currentFile) { el.ctBar.style.display = 'none'; return; }
+  el.ctBar.style.display = '';
+  const name = state.currentFile.split(/[/\\]/).pop();
+  el.ctFile.textContent  = name;
+  el.ctFile.classList.toggle('dirty', state.isDirty);
+}
+
+function setupEditorTabKey() {
+  // Only register once
+  if (el.mdEditor._tabBound) return;
+  el.mdEditor._tabBound = true;
+  el.mdEditor.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = el.mdEditor.selectionStart;
+      const v = el.mdEditor.value;
+      el.mdEditor.value = v.slice(0, s) + '  ' + v.slice(el.mdEditor.selectionEnd);
+      el.mdEditor.selectionStart = el.mdEditor.selectionEnd = s + 2;
+    }
+  });
+  el.mdEditor.addEventListener('input', () => {
+    if (!state.isDirty) setDirty(true);
+  });
+}
+
+// ─── Status bar ───────────────────────────────────────────────────────────────
+function updateStatusBar(res) {
+  const name = (res.filePath || '').split(/[/\\]/).pop();
+  el.statusFile.textContent = name || '';
+  el.statusMeta.textContent = res.size != null ? formatSize(res.size) + (res.modified ? '  ·  ' + new Date(res.modified).toLocaleDateString() : '') : '';
+}
+
+function showError(msg) {
+  el.welcome.style.display  = 'none';
+  el.mdScroll.style.display = '';
+  el.mdBody.innerHTML = `<div style="padding:32px;color:var(--text-muted)">⚠️ ${escapeHtml(String(msg))}</div>`;
+}
+
+// ─── Sidebar resize ───────────────────────────────────────────────────────────
+function setupSidebarResize() {
+  let dragging = false, startX = 0, startW = 0;
+
+  el.sidebarResizer.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.clientX;
+    startW   = el.sidebar.getBoundingClientRect().width;
+    el.sidebarResizer.classList.add('dragging');
+    document.body.style.cssText = 'cursor:col-resize;user-select:none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const newW = Math.max(160, Math.min(400, startW + e.clientX - startX));
+    state.sidebarWidth = newW;
+    el.sidebar.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    el.sidebarResizer.classList.remove('dragging');
+    document.body.style.cssText = '';
+    api.saveConfig({ sidebarWidth: state.sidebarWidth });
+  });
+}
+
+// ─── Panel edge resize ────────────────────────────────────────────────────────
+function setupEdgePanelResize() {
+  let dragging = false, startX = 0, startW = 0;
+
+  el.edgeResize.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.screenX;
+    startW   = window.innerWidth;
+    document.body.style.cssText = 'cursor:ew-resize;user-select:none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    api.resizeWindow(Math.max(300, Math.min(900, startW + (startX - e.screenX))));
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!dragging) return;
+    dragging = false;
+    startW   = window.innerWidth;
+    document.body.style.cssText = '';
+  });
+}
+
+// ─── Keyboard ─────────────────────────────────────────────────────────────────
+function setupKeyboard() {
+  document.addEventListener('keydown', e => {
+    const meta = e.metaKey || e.ctrlKey;
+
+    if (e.key === 'Escape' && !e.shiftKey) {
+      if (state.isEditing) enterViewMode(false);
+      else api.hidePanel();
+      return;
+    }
+
+    if (meta && e.key === '\\')                              { e.preventDefault(); toggleSidebar(); return; }
+    if (meta && e.shiftKey && e.key.toUpperCase() === 'M')   { e.preventDefault(); api.togglePanel(); return; }
+    if (meta && e.key === 'o')                               { e.preventDefault(); openFolderDialog(); return; }
+    if (meta && e.key === 'n')                               { e.preventDefault(); newFileAtRoot(); return; }
+
+    // Cmd/Ctrl+S — save
+    if (meta && e.key === 's') {
+      e.preventDefault();
+      if (state.isEditing) saveCurrentFile();
+      return;
+    }
+
+    // Cmd/Ctrl+E — toggle edit/view
+    if (meta && e.key === 'e') {
+      e.preventDefault();
+      if (state.currentFile) toggleEditView();
+      return;
+    }
+  });
+}
+
+// ─── Bind events ─────────────────────────────────────────────────────────────
+function bindEvents() {
+  el.btnSidebarToggle.addEventListener('click', toggleSidebar);
+  el.btnTheme.addEventListener('click', toggleTheme);
+  el.btnPin.addEventListener('click', togglePin);
+  el.btnHide.addEventListener('click', () => api.quitApp());
+  el.btnOpenFolder.addEventListener('click', openFolderDialog);
+  el.btnNewFile.addEventListener('click', newFileAtRoot);
+
+  // Editor toolbar
+  el.btnEditMode.addEventListener('click', enterEditMode);
+  el.btnSave.addEventListener('click', () => saveCurrentFile());
+  el.btnViewMode.addEventListener('click', () => enterViewMode(false));
+
+  setupSidebarResize();
+  setupEdgePanelResize();
+  setupKeyboard();
+
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    api.getConfig().then(cfg => { if (cfg.dark === undefined) applyTheme(e.matches, false); });
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fileIconPath(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['md', 'markdown', 'mdown', 'mkd'].includes(ext))
+    return `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 15V9l2 2 2-2v6"/><path d="M14 13l2 2 2-2"/>`;
+  return `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>`;
+}
+
+function svgIcon(pathData, className, color) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', color || 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  if (className) svg.setAttribute('class', className);   // ← setAttribute, not .className (SVG)
+  svg.innerHTML = pathData;
+  return svg;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024)         return bytes + ' B';
+  if (bytes < 1024 * 1024)  return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', init);
