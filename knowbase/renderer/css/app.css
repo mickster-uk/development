@@ -293,6 +293,37 @@ html, body {
 }
 .new-file-input::placeholder { color: var(--text-muted); }
 
+/* ── New-item dropdown menu ──────────────────────────────── */
+.new-item-menu {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-content);
+  border: 1px solid var(--border-solid);
+  border-radius: 9px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1);
+  overflow: hidden;
+  min-width: 148px;
+  padding: 4px;
+}
+
+.new-item-menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--anim);
+}
+.new-item-menu-btn:hover { background: var(--bg-hover); }
+
 /* File tree */
 .file-tree {
   flex: 1;

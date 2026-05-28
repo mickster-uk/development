@@ -185,6 +185,16 @@ ipcMain.handle('create-file', async (_, filePath) => {
   }
 });
 
+ipcMain.handle('create-folder', async (_, folderPath) => {
+  try {
+    if (fs.existsSync(folderPath)) return { success: false, error: 'Folder already exists' };
+    fs.mkdirSync(folderPath, { recursive: true });
+    return { success: true, folderPath };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
 ipcMain.handle('delete-file', async (_, filePath) => {
   try {
     fs.unlinkSync(filePath);

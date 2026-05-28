@@ -1,5 +1,7 @@
-/* ── Markdown Reader – renderer ───────────────────────────────────────────── */
+/* ── Knowbase – renderer ──────────────────────────────────────────────────── */
 'use strict';
+
+let mermaidCounter = 0;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -83,6 +85,7 @@ async function init() {
   if (cfg.sidebarVisible === false) setSidebarVisible(false, false);
   if (cfg.pinned)                   setPinned(true, false);
 
+  initMermaid();
   bindEvents();
 
   api.onRestoreFolder(path => loadFolder(path));
@@ -99,6 +102,12 @@ function applyTheme(dark, save = true) {
 
   el.iconSun.style.display  = dark ? 'none' : '';
   el.iconMoon.style.display = dark ? ''     : 'none';
+
+  // Re-init mermaid with matching theme and re-render any visible diagrams
+  initMermaid();
+  if (el.mdScroll.style.display !== 'none' && el.mdBody.querySelector('.mermaid-wrap, .mermaid-diagram')) {
+    if (state.editorContent) renderMarkdown(api.parseMarkdown(state.editorContent));
+  }
 
   if (save) api.saveConfig({ dark });
 }
@@ -204,8 +213,8 @@ function buildTreeItem(item, depth) {
 
     newBtn.addEventListener('click', e => {
       e.stopPropagation();
-      li.classList.add('open');            // expand first
-      showInlineNewFileInput(children, item.path, depth + 1);
+      li.classList.add('open');
+      showNewItemMenu(newBtn, item.path, depth + 1, () => children);
     });
 
   } else {
@@ -238,23 +247,80 @@ function buildTreeItem(item, depth) {
   return li;
 }
 
-// ─── Inline new-file input ────────────────────────────────────────────────────
-function showInlineNewFileInput(childrenUL, dirPath, depth) {
-  // Only one at a time
+// ─── New-item dropdown menu ───────────────────────────────────────────────────
+function showNewItemMenu(anchorEl, dirPath, depth, getUL) {
+  closeNewItemMenu();
+
+  const menu = document.createElement('div');
+  menu.className = 'new-item-menu';
+  document.body.appendChild(menu);
+
+  function makeMenuItem(pathData, color, label, type) {
+    const btn = document.createElement('button');
+    btn.className = 'new-item-menu-btn';
+    const ico = svgIcon(pathData, null, color);
+    ico.style.cssText = 'width:14px;height:14px;flex-shrink:0';
+    btn.appendChild(ico);
+    const span = document.createElement('span');
+    span.textContent = label;
+    btn.appendChild(span);
+    btn.addEventListener('mousedown', e => {
+      e.preventDefault();
+      closeNewItemMenu();
+      const ul = getUL();
+      showInlineNewInput(ul, dirPath, depth, type);
+    });
+    return btn;
+  }
+
+  menu.appendChild(makeMenuItem(
+    `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>`,
+    'var(--text-accent)', 'New File', 'file'
+  ));
+  menu.appendChild(makeMenuItem(
+    `<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>`,
+    '#facc15', 'New Folder', 'folder'
+  ));
+
+  // Position below the anchor button
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.top  = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+
+  // Close on outside click
+  const onOutside = e => { if (!menu.contains(e.target)) closeNewItemMenu(); };
+  setTimeout(() => document.addEventListener('click', onOutside, true), 10);
+  menu._onOutside = onOutside;
+}
+
+function closeNewItemMenu() {
+  const m = document.querySelector('.new-item-menu');
+  if (!m) return;
+  if (m._onOutside) document.removeEventListener('click', m._onOutside, true);
+  m.remove();
+}
+
+// ─── Inline new-item input (file or folder) ───────────────────────────────────
+function showInlineNewInput(childrenUL, dirPath, depth, type = 'file') {
+  if (!childrenUL) return;
   if (childrenUL.querySelector('.new-file-input-row')) return;
+
+  const isFolder = type === 'folder';
 
   const row = document.createElement('div');
   row.className = 'new-file-input-row';
   row.style.paddingLeft = (6 + depth * 14 + 12) + 'px';
 
-  const icon = svgIcon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>`, null, 'var(--text-accent)');
+  const icon = isFolder
+    ? svgIcon(`<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>`, null, '#facc15')
+    : svgIcon(`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>`, null, 'var(--text-accent)');
   icon.style.cssText = 'width:14px;height:14px;flex-shrink:0';
   row.appendChild(icon);
 
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'new-file-input';
-  input.placeholder = 'filename.md';
+  input.placeholder = isFolder ? 'folder-name' : 'filename.md';
   row.appendChild(input);
 
   childrenUL.insertBefore(row, childrenUL.firstChild);
@@ -263,18 +329,27 @@ function showInlineNewFileInput(childrenUL, dirPath, depth) {
   async function confirmCreate() {
     let name = input.value.trim();
     if (!name) { row.remove(); return; }
-    if (!/\.\w+$/.test(name)) name += '.md';
+    if (!isFolder && !/\.\w+$/.test(name)) name += '.md';
     const sep   = dirPath.includes('\\') ? '\\' : '/';
     const fpath = dirPath.replace(/[/\\]+$/, '') + sep + name;
     row.remove();
 
-    const res = await api.createFile(fpath);
-    if (res.success) {
-      await loadFolder(state.currentFolder);
-      await openFile(fpath);
-      enterEditMode();
+    if (isFolder) {
+      const res = await api.createFolder(fpath);
+      if (res.success) {
+        await loadFolder(state.currentFolder);
+      } else {
+        showError('Could not create folder: ' + res.error);
+      }
     } else {
-      showError('Could not create file: ' + res.error);
+      const res = await api.createFile(fpath);
+      if (res.success) {
+        await loadFolder(state.currentFolder);
+        await openFile(fpath);
+        enterEditMode();
+      } else {
+        showError('Could not create file: ' + res.error);
+      }
     }
   }
 
@@ -286,21 +361,19 @@ function showInlineNewFileInput(childrenUL, dirPath, depth) {
   input.addEventListener('blur', () => setTimeout(() => { if (row.parentNode) row.remove(); }, 200));
 }
 
-// Trigger new-file at root level (from top + button)
-async function newFileAtRoot() {
+// Top-bar + button — show dropdown
+function newItemAtRoot() {
   if (!state.currentFolder) return;
-  // Find the root UL in the file tree
-  const rootUL = el.fileTree.querySelector('ul');
-  if (rootUL) {
-    showInlineNewFileInput(rootUL, state.currentFolder, 0);
-  } else {
-    // Tree might be empty – show input directly in the container
-    el.fileTree.innerHTML = '';
-    const ul = document.createElement('ul');
-    ul.style.cssText = 'list-style:none;padding:0;margin:0;';
-    el.fileTree.appendChild(ul);
-    showInlineNewFileInput(ul, state.currentFolder, 0);
-  }
+  showNewItemMenu(el.btnNewFile, state.currentFolder, 0, () => {
+    let ul = el.fileTree.querySelector('ul');
+    if (!ul) {
+      el.fileTree.innerHTML = '';
+      ul = document.createElement('ul');
+      ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+      el.fileTree.appendChild(ul);
+    }
+    return ul;
+  });
 }
 
 // ─── Open & render file ───────────────────────────────────────────────────────
@@ -323,6 +396,8 @@ function renderMarkdown(html) {
   el.welcome.style.display  = 'none';
   el.mdScroll.style.display = '';
   el.mdBody.innerHTML       = html;
+
+  renderMermaidDiagrams();
 
   // Copy buttons
   el.mdBody.querySelectorAll('.copy-btn').forEach(btn => {
@@ -433,6 +508,36 @@ function updateCtBar() {
   el.ctFile.classList.toggle('dirty', state.isDirty);
 }
 
+// ─── Mermaid ──────────────────────────────────────────────────────────────────
+function initMermaid() {
+  if (typeof mermaid === 'undefined') return;
+  mermaid.initialize({
+    startOnLoad:   false,
+    theme:         state.isDark ? 'dark' : 'default',
+    securityLevel: 'loose',
+    fontFamily:    '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+  });
+}
+
+async function renderMermaidDiagrams() {
+  if (typeof mermaid === 'undefined') return;
+  const wraps = el.mdBody.querySelectorAll('.mermaid-wrap');
+  for (const wrap of wraps) {
+    const code = decodeURIComponent(wrap.dataset.code || '');
+    if (!code) continue;
+    const id = 'mermaid-' + (++mermaidCounter);
+    try {
+      const { svg } = await mermaid.render(id, code);
+      wrap.innerHTML = `<div class="mermaid-diagram">${svg}</div>`;
+    } catch (e) {
+      wrap.innerHTML = `<div class="mermaid-error">` +
+        `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>` +
+        `<span>Diagram error: ${escapeHtml(e.message)}</span>` +
+        `</div>`;
+    }
+  }
+}
+
 function setupEditorTabKey() {
   // Only register once
   if (el.mdEditor._tabBound) return;
@@ -532,7 +637,7 @@ function setupKeyboard() {
     if (meta && e.key === '\\')                              { e.preventDefault(); toggleSidebar(); return; }
     if (meta && e.shiftKey && e.key.toUpperCase() === 'M')   { e.preventDefault(); api.togglePanel(); return; }
     if (meta && e.key === 'o')                               { e.preventDefault(); openFolderDialog(); return; }
-    if (meta && e.key === 'n')                               { e.preventDefault(); newFileAtRoot(); return; }
+    if (meta && e.key === 'n')                               { e.preventDefault(); newItemAtRoot(); return; }
 
     // Cmd/Ctrl+S — save
     if (meta && e.key === 's') {
@@ -557,7 +662,7 @@ function bindEvents() {
   el.btnPin.addEventListener('click', togglePin);
   el.btnHide.addEventListener('click', () => api.quitApp());
   el.btnOpenFolder.addEventListener('click', openFolderDialog);
-  el.btnNewFile.addEventListener('click', newFileAtRoot);
+  el.btnNewFile.addEventListener('click', newItemAtRoot);
 
   // Editor toolbar
   el.btnEditMode.addEventListener('click', enterEditMode);

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' 'unsafe-inline'; img-src 'self' data: https: file:; font-src 'self' data:;">
+        content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: https: file: blob:; font-src 'self' data:;">
   <title>Knowbase</title>
   <link rel="stylesheet" id="hljs-theme" href="">
   <link rel="stylesheet" href="css/app.css">
@@ -169,6 +169,7 @@
   </footer>
 
 </div>
+<script src="../node_modules/mermaid/dist/mermaid.min.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

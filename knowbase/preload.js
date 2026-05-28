@@ -7,9 +7,17 @@ marked.setOptions({ gfm: true, breaks: true });
 
 marked.use({
   renderer: {
-    // Syntax-highlighted code blocks
+    // Syntax-highlighted code blocks (mermaid gets a special wrapper)
     code(code, infostring) {
-      const lang     = (infostring || '').match(/^\S*/)?.[0] || '';
+      const lang = (infostring || '').match(/^\S*/)?.[0] || '';
+
+      // Mermaid diagrams – rendered in the renderer via mermaid.js
+      if (lang === 'mermaid') {
+        return `<div class="mermaid-wrap" data-code="${encodeURIComponent(code)}">` +
+               `<div class="mermaid-loading">Rendering diagram…</div>` +
+               `</div>`;
+      }
+
       const validLng = lang && hljs.getLanguage(lang) ? lang : null;
       let highlighted;
       try {
@@ -103,10 +111,11 @@ contextBridge.exposeInMainWorld('api', {
   openFolderDialog: ()           => ipcRenderer.invoke('open-folder-dialog'),
 
   // File system – write / create / manage
-  writeFile:   (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
-  createFile:  (filePath)          => ipcRenderer.invoke('create-file', filePath),
-  deleteFile:  (filePath)          => ipcRenderer.invoke('delete-file', filePath),
-  renameFile:  (oldPath, newPath)  => ipcRenderer.invoke('rename-file', oldPath, newPath),
+  writeFile:    (filePath, content)  => ipcRenderer.invoke('write-file', filePath, content),
+  createFile:   (filePath)           => ipcRenderer.invoke('create-file', filePath),
+  createFolder: (folderPath)         => ipcRenderer.invoke('create-folder', folderPath),
+  deleteFile:   (filePath)           => ipcRenderer.invoke('delete-file', filePath),
+  renameFile:   (oldPath, newPath)   => ipcRenderer.invoke('rename-file', oldPath, newPath),
 
   // Config
   getConfig:  ()    => ipcRenderer.invoke('get-config'),
