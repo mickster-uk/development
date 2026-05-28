@@ -21,12 +21,17 @@ const MARKDOWN_EXT = new Set([
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWindow;
 let tray;
-let isPanelOpen  = true;
-let isAnimating  = false;
-let configCache  = null;
+let isPanelOpen       = true;
+let isAnimating       = false;
+let configCache       = null;
+let activeDisplayId   = null;   // null = always use primary
 
 // ─── Window helpers ───────────────────────────────────────────────────────────
 function getWorkArea() {
+  if (activeDisplayId !== null) {
+    const d = screen.getAllDisplays().find(d => d.id === activeDisplayId);
+    if (d) return d.workArea;
+  }
   return screen.getPrimaryDisplay().workArea;
 }
 
@@ -215,6 +220,32 @@ ipcMain.handle('rename-file', async (_, oldPath, newPath) => {
 ipcMain.handle('toggle-panel',  ()          => togglePanel());
 ipcMain.handle('hide-panel',    ()          => { if (isPanelOpen) slideOut(); });
 ipcMain.handle('quit-app',      ()          => app.quit());
+
+ipcMain.handle('get-displays', () => {
+  const primary = screen.getPrimaryDisplay();
+  return screen.getAllDisplays().map((d, i) => ({
+    id:        d.id,
+    index:     i + 1,
+    isPrimary: d.id === primary.id,
+    isActive:  d.id === (activeDisplayId ?? primary.id),
+    width:     d.workArea.width,
+    height:    d.workArea.height,
+  }));
+});
+
+ipcMain.handle('dock-to-display', (_, displayId) => {
+  const all     = screen.getAllDisplays();
+  const target  = all.find(d => d.id === displayId) || screen.getPrimaryDisplay();
+  activeDisplayId = target.id;
+  const wa      = target.workArea;
+  const [w]     = mainWindow.getSize();
+  mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
+  if (!isPanelOpen) { mainWindow.show(); isPanelOpen = true; }
+  mainWindow.focus();
+  saveConfig({ activeDisplayId: activeDisplayId });
+  return { success: true };
+});
+
 ipcMain.handle('open-external', (_, url)    => { shell.openExternal(url); });
 ipcMain.handle('get-platform',  ()          => process.platform);
 ipcMain.handle('get-version',   ()          => app.getVersion());
@@ -287,8 +318,12 @@ function saveConfig(updates) {
 app.whenReady().then(async () => {
   await createWindow();
 
-  // Restore last panel width
+  // Restore last panel width & active display
   const cfg = loadConfig();
+  if (cfg.activeDisplayId) {
+    const exists = screen.getAllDisplays().some(d => d.id === cfg.activeDisplayId);
+    if (exists) activeDisplayId = cfg.activeDisplayId;
+  }
   if (cfg.panelWidth) {
     const wa = getWorkArea();
     const w  = Math.max(CFG.MIN_WIDTH, Math.min(CFG.MAX_WIDTH, cfg.panelWidth));

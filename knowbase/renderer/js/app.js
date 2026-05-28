@@ -53,6 +53,7 @@ const el = {
   kbdShortcut:    $('kbd-shortcut'),
   edgeResize:     $('edge-resize'),
   tbVersion:      $('tb-version'),
+  btnDisplay:     $('btn-display'),
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -519,6 +520,15 @@ function initMermaid() {
   });
 }
 
+function applyMermaidZoom(svgEl, labelEl, scale) {
+  const nW = parseFloat(svgEl.dataset.naturalW) || 500;
+  const nH = parseFloat(svgEl.dataset.naturalH) || 300;
+  svgEl.dataset.scale  = scale;
+  svgEl.style.width    = (nW * scale) + 'px';
+  svgEl.style.height   = (nH * scale) + 'px';
+  if (labelEl) labelEl.textContent = Math.round(scale * 100) + '%';
+}
+
 async function renderMermaidDiagrams() {
   if (typeof mermaid === 'undefined') return;
   const wraps = el.mdBody.querySelectorAll('.mermaid-wrap');
@@ -528,14 +538,129 @@ async function renderMermaidDiagrams() {
     const id = 'mermaid-' + (++mermaidCounter);
     try {
       const { svg } = await mermaid.render(id, code);
-      wrap.innerHTML = `<div class="mermaid-diagram">${svg}</div>`;
+
+      // Build diagram container
+      const diagram   = document.createElement('div');
+      diagram.className = 'mermaid-diagram';
+
+      const canvas    = document.createElement('div');
+      canvas.className = 'mermaid-canvas';
+      canvas.innerHTML = svg;
+      diagram.appendChild(canvas);
+
+      // Zoom toolbar
+      const toolbar   = document.createElement('div');
+      toolbar.className = 'mermaid-toolbar';
+
+      const zoomOut   = document.createElement('button');
+      zoomOut.className = 'mermaid-zoom-btn';
+      zoomOut.title   = 'Zoom out';
+      zoomOut.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
+
+      const zoomLabel = document.createElement('span');
+      zoomLabel.className = 'mermaid-zoom-label';
+      zoomLabel.textContent = '100%';
+
+      const zoomIn    = document.createElement('button');
+      zoomIn.className = 'mermaid-zoom-btn';
+      zoomIn.title    = 'Zoom in';
+      zoomIn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`;
+
+      const zoomReset = document.createElement('button');
+      zoomReset.className = 'mermaid-zoom-btn mermaid-zoom-reset';
+      zoomReset.title = 'Reset zoom';
+      zoomReset.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+
+      toolbar.append(zoomOut, zoomLabel, zoomIn, zoomReset);
+      diagram.appendChild(toolbar);
+      wrap.innerHTML = '';
+      wrap.appendChild(diagram);
+
+      // Store natural SVG dimensions, then set explicit size
+      const svgEl = canvas.querySelector('svg');
+      if (svgEl) {
+        const vb  = svgEl.viewBox.baseVal;
+        const nW  = vb.width  > 0 ? vb.width  : (parseFloat(svgEl.style.maxWidth) || 500);
+        const nH  = vb.height > 0 ? vb.height : 300;
+        svgEl.style.maxWidth = 'none';
+        svgEl.style.display  = 'block';
+        svgEl.dataset.naturalW = nW;
+        svgEl.dataset.naturalH = nH;
+        svgEl.dataset.scale    = '1';
+        svgEl.style.width      = nW + 'px';
+        svgEl.style.height     = nH + 'px';
+
+        zoomIn.addEventListener('click',    () => applyMermaidZoom(svgEl, zoomLabel, Math.min(4,    parseFloat(svgEl.dataset.scale) + 0.25)));
+        zoomOut.addEventListener('click',   () => applyMermaidZoom(svgEl, zoomLabel, Math.max(0.25, parseFloat(svgEl.dataset.scale) - 0.25)));
+        zoomReset.addEventListener('click', () => applyMermaidZoom(svgEl, zoomLabel, 1));
+      }
     } catch (e) {
       wrap.innerHTML = `<div class="mermaid-error">` +
         `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>` +
-        `<span>Diagram error: ${escapeHtml(e.message)}</span>` +
-        `</div>`;
+        `<span>Diagram error: ${escapeHtml(e.message)}</span></div>`;
     }
   }
+}
+
+// ─── Display picker ───────────────────────────────────────────────────────────
+async function showDisplayPicker(anchorEl) {
+  closeDisplayPicker();
+
+  const displays = await api.getDisplays();
+  if (displays.length <= 1) return; // no point showing if only one screen
+
+  const menu = document.createElement('div');
+  menu.className = 'display-picker';
+  document.body.appendChild(menu);
+
+  for (const d of displays) {
+    const item = document.createElement('button');
+    item.className = 'display-picker-item' + (d.isActive ? ' active' : '');
+
+    const icon = svgIcon(
+      `<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>`,
+      null, d.isActive ? 'var(--text-accent)' : 'var(--text-muted)'
+    );
+    icon.style.cssText = 'width:15px;height:15px;flex-shrink:0';
+
+    const info = document.createElement('div');
+    info.className = 'display-picker-info';
+    info.innerHTML =
+      `<span class="display-picker-name">Screen ${d.index}${d.isPrimary ? ' <em>Primary</em>' : ''}</span>` +
+      `<span class="display-picker-size">${d.width} × ${d.height}</span>`;
+
+    if (d.isActive) {
+      const dot = document.createElement('span');
+      dot.className = 'display-picker-dot';
+      dot.textContent = '●';
+      item.appendChild(dot);
+    }
+
+    item.prepend(icon);
+    item.appendChild(info);
+
+    item.addEventListener('mousedown', async e => {
+      e.preventDefault();
+      closeDisplayPicker();
+      await api.dockToDisplay(d.id);
+    });
+    menu.appendChild(item);
+  }
+
+  const rect  = anchorEl.getBoundingClientRect();
+  menu.style.top   = (rect.bottom + 4) + 'px';
+  menu.style.right = (window.innerWidth - rect.right) + 'px';
+
+  const onOutside = e => { if (!menu.contains(e.target)) closeDisplayPicker(); };
+  setTimeout(() => document.addEventListener('click', onOutside, true), 10);
+  menu._onOutside = onOutside;
+}
+
+function closeDisplayPicker() {
+  const m = document.querySelector('.display-picker');
+  if (!m) return;
+  if (m._onOutside) document.removeEventListener('click', m._onOutside, true);
+  m.remove();
 }
 
 function setupEditorTabKey() {
@@ -658,6 +783,7 @@ function setupKeyboard() {
 // ─── Bind events ─────────────────────────────────────────────────────────────
 function bindEvents() {
   el.btnSidebarToggle.addEventListener('click', toggleSidebar);
+  el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnTheme.addEventListener('click', toggleTheme);
   el.btnPin.addEventListener('click', togglePin);
   el.btnHide.addEventListener('click', () => api.quitApp());

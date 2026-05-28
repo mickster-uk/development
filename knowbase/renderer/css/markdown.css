@@ -338,18 +338,27 @@
 }
 
 .markdown-body .mermaid-diagram {
-  display: flex;
-  justify-content: center;
-  padding: 20px 16px;
   background: var(--bg-code);
   border-radius: 10px;
   border: 1px solid var(--border);
+  overflow: hidden;
 }
 
+.markdown-body .mermaid-canvas {
+  display: flex;
+  justify-content: center;
+  padding: 20px 16px 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-solid) transparent;
+}
+.markdown-body .mermaid-canvas::-webkit-scrollbar       { height: 5px; }
+.markdown-body .mermaid-canvas::-webkit-scrollbar-thumb { background: var(--border-solid); border-radius: 3px; }
+
 .markdown-body .mermaid-diagram svg {
-  max-width: 100%;
-  height: auto;
-  border-radius: 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
 }
 
 .markdown-body .mermaid-loading {

@@ -128,6 +128,10 @@ contextBridge.exposeInMainWorld('api', {
   setAlwaysOnTop: (val) => ipcRenderer.invoke('set-always-on-top', val),
   resizeWindow:   (w)   => ipcRenderer.send('resize-window', w),
 
+  // Multi-display
+  getDisplays:    ()    => ipcRenderer.invoke('get-displays'),
+  dockToDisplay:  (id)  => ipcRenderer.invoke('dock-to-display', id),
+
   // External
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   getPlatform:  ()    => ipcRenderer.invoke('get-platform'),
