@@ -436,7 +436,7 @@
 
     /* ── Search results panel ────────────────────────────────────────── */
     #searchPanel {
-      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
       max-height: 0;
       overflow: hidden;
       transition: max-height 0.3s ease;
@@ -511,6 +511,7 @@
       40%          { opacity: 1;   transform: scale(1); }
     }
     .search-error { font-size: 12px; color: var(--red); }
+    .search-no-results { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); }
     .search-hits {
       font-family: 'DM Mono', monospace;
       font-size: 10px;
@@ -535,37 +536,37 @@
     .settings-card {
       background: #1a1a1c;
       border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 28px 32px;
-      width: 440px;
+      border-radius: 12px;
+      padding: 18px 22px;
+      width: 400px;
       max-width: 90vw;
     }
     .settings-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 22px;
+      margin-bottom: 14px;
     }
     .settings-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
     }
 
     .settings-section {
-      margin-bottom: 20px;
+      margin-bottom: 14px;
     }
     .settings-section-title {
       font-family: 'DM Mono', monospace;
-      font-size: 10px;
+      font-size: 9px;
       color: var(--accent);
       text-transform: uppercase;
       letter-spacing: 0.1em;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .settings-fields {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 7px;
     }
     .settings-row {
       display: flex;
@@ -573,6 +574,37 @@
       align-items: center;
     }
     .settings-row .field-label { margin-bottom: 0; min-width: 90px; }
+
+    #calendarList {
+      max-height: 130px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+      padding-right: 4px;
+    }
+    #calendarList::-webkit-scrollbar { width: 3px; }
+    #calendarList::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .calendar-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text);
+      padding: 4px 0;
+    }
+    .calendar-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .calendar-name { flex: 1; }
+    .calendar-primary {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--accent);
+      opacity: 0.7;
+    }
 
     .btn-danger {
       background: none;
@@ -586,6 +618,205 @@
       transition: background 0.15s;
     }
     .btn-danger:hover { background: rgba(255,107,107,0.1); }
+
+    /* ── Visual timeline ─────────────────────────────────────────── */
+    #visualTimeline {
+      flex: 1;
+      overflow: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+    #visualTimeline::-webkit-scrollbar { width: 4px; height: 4px; }
+    #visualTimeline::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+    .vt-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--muted);
+      font-size: 13px;
+      gap: 8px;
+    }
+
+    .vt-canvas {
+      display: inline-block;
+      min-width: 100%;
+      padding: 16px 20px 28px;
+      box-sizing: border-box;
+    }
+
+    .vt-header-row {
+      display: flex;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .vt-day-col {
+      flex-shrink: 0;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .vt-month-tick {
+      font-size: 8px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+      height: 13px;
+      line-height: 13px;
+      text-align: left;
+      white-space: nowrap;
+      overflow: visible;
+      padding-left: 2px;
+      text-transform: uppercase;
+    }
+
+    .vt-day-num {
+      font-size: 10px;
+      color: var(--muted);
+      line-height: 18px;
+    }
+
+    .vt-day-col.vt-today-col .vt-day-num {
+      color: var(--accent);
+      font-weight: 500;
+    }
+
+    .vt-day-col.vt-weekend .vt-day-num { color: var(--muted2); }
+
+    .vt-events-area { position: relative; }
+
+    .vt-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .vt-grid-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--border);
+    }
+
+    .vt-grid-line.vt-weekend-line { background: rgba(255,255,255,0.03); }
+
+    .vt-today-line {
+      position: absolute;
+      top: -42px;
+      bottom: 0;
+      width: 1px;
+      background: var(--accent);
+      opacity: 0.45;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .vt-event-rows {
+      position: relative;
+      z-index: 1;
+      padding-top: 6px;
+    }
+
+    .vt-event-row {
+      position: relative;
+      height: 32px;
+      margin-bottom: 4px;
+    }
+
+    .vt-event-bar {
+      position: absolute;
+      top: 4px;
+      height: 24px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      overflow: hidden;
+      transition: filter 0.15s;
+      min-width: 10px;
+      cursor: default;
+    }
+
+    .vt-event-bar:hover { filter: brightness(1.12); }
+
+    .vt-event-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.92);
+      text-shadow: 0 0 6px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── View tabs ───────────────────────────────────────────────── */
+    .view-tabs { display: flex; gap: 2px; margin-left: auto; }
+    .view-tab {
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: var(--muted2);
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .view-tab:hover { color: var(--muted); }
+    .view-tab.active { color: var(--accent); border-color: rgba(255,159,74,0.35); }
+
+    /* ── Radial view ─────────────────────────────────────────────── */
+    #radialView {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Event tooltip ───────────────────────────────────────────── */
+    #vtTooltip {
+      display: none;
+      position: fixed;
+      z-index: 300;
+      background: #1e1e21;
+      border: 1px solid rgba(255,255,255,0.13);
+      border-radius: 9px;
+      padding: 11px 13px;
+      max-width: 290px;
+      min-width: 180px;
+      box-shadow: 0 10px 32px rgba(0,0,0,0.55);
+      pointer-events: none;
+    }
+    .vtt-title {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 9px;
+      line-height: 1.45;
+    }
+    .vtt-body { display: flex; flex-direction: column; gap: 4px; }
+    .vtt-row  { display: flex; gap: 9px; font-size: 11px; line-height: 1.45; }
+    .vtt-key  {
+      font-family: 'DM Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      min-width: 56px;
+      flex-shrink: 0;
+      padding-top: 1px;
+    }
+    .vtt-val  { color: var(--text); word-break: break-word; }
+    .vtt-cal  { display: flex; align-items: center; gap: 5px; }
+    .vtt-cal-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .vtt-muted { color: var(--muted); font-size: 10px; line-height: 1.5; }
+    .vtt-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 7px 0 4px;
+    }
 
     .hidden { display: none !important; }
 
@@ -668,12 +899,6 @@
 
       <!-- Timeline (shown when authenticated) -->
       <div id="timelineWrap" class="hidden" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-        <div id="timeline">
-          <div class="timeline-empty">
-            <div class="big">&#128197;</div>
-            <div>Loading events&hellip;</div>
-          </div>
-        </div>
         <div id="searchPanel">
           <div class="search-panel-inner">
             <div class="search-panel-header">
@@ -683,15 +908,41 @@
             <div id="searchResult"></div>
           </div>
         </div>
+        <div id="visualTimeline">
+          <div class="vt-empty">
+            <div style="font-size:28px;opacity:0.3">&#128337;</div>
+            <div>Search to explore events on the timeline</div>
+          </div>
+        </div>
+        <div id="radialView" class="hidden">
+          <div class="vt-empty">
+            <div style="font-size:28px;opacity:0.25">&#10022;</div>
+            <div>Search to explore events in radial view</div>
+          </div>
+        </div>
+        <div id="timeline" class="hidden">
+          <div class="timeline-empty">
+            <div class="big">&#128197;</div>
+            <div>Loading events&hellip;</div>
+          </div>
+        </div>
         <div class="status-bar">
           <span class="status-item" id="statusEvents">—</span>
           <span class="status-item" id="statusRAG">RAG: —</span>
+          <div class="view-tabs">
+            <button class="view-tab active" data-view="timeline" onclick="setView('timeline')">Timeline</button>
+            <button class="view-tab"        data-view="radial"   onclick="setView('radial')">Radial</button>
+            <button class="view-tab"        data-view="list"     onclick="setView('list')">Events</button>
+          </div>
         </div>
       </div>
 
     </div><!-- /content -->
 
   </div><!-- /root -->
+
+  <!-- Event tooltip -->
+  <div id="vtTooltip"></div>
 
   <!-- Settings overlay -->
   <div id="settingsOverlay" onclick="closeSettingsOnBackdrop(event)">
@@ -724,9 +975,37 @@
           </div>
           <div>
             <div class="field-label">Model</div>
-            <input class="field-input" id="sModel" type="text" style="width:100%" placeholder="llama3.2:latest"/>
+            <input class="field-input" id="sModel" type="text" style="width:100%" placeholder="gemma4:latest"/>
+          </div>
+          <div>
+            <div class="field-label">Embedding Model</div>
+            <input class="field-input" id="sEmbeddingModel" type="text" style="width:100%" placeholder="nomic-embed-text"/>
+          </div>
+          <div>
+            <div class="field-label" style="display:flex;justify-content:space-between;align-items:center">
+              <span>Confidence threshold</span>
+              <span id="thresholdValue" style="color:var(--accent);font-size:11px">0.40</span>
+            </div>
+            <input type="range" id="sThreshold" min="0.1" max="0.9" step="0.05"
+              style="width:100%;margin-top:4px;accent-color:var(--accent)"
+              oninput="document.getElementById('thresholdValue').textContent = parseFloat(this.value).toFixed(2)"/>
+            <div style="display:flex;justify-content:space-between;margin-top:3px">
+              <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted2)">more results</span>
+              <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted2)">fewer results</span>
+            </div>
+          </div>
+          <div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="sShowWorking" style="accent-color:var(--accent);width:13px;height:13px;cursor:pointer"/>
+              <span class="field-label" style="margin-bottom:0">Show matched events &amp; confidence</span>
+            </label>
           </div>
         </div>
+      </div>
+
+      <div class="settings-section" id="calendarsSection" style="display:none">
+        <div class="settings-section-title">Calendars</div>
+        <div id="calendarList" style="display:flex;flex-direction:column;gap:6px"></div>
       </div>
 
       <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
@@ -744,6 +1023,18 @@
     let allEvents   = [];
     let highlightedIds = new Set();
     let isAuthenticated = false;
+    let showWorking = false;
+    let currentView      = 'timeline';
+    let vtItems          = [];
+    let radialItems       = [];
+    let radialRotX        = -0.6;
+    let radialRotY        =  0.2;
+    let radialDragging    = false;
+    let radialDragStartX  = 0;
+    let radialDragStartY  = 0;
+    let radialDragStartRX = 0;
+    let radialDragStartRY = 0;
+    let lastSearchEvents  = null;
 
     const MONTHS = ['January','February','March','April','May','June',
                     'July','August','September','October','November','December'];
@@ -864,6 +1155,7 @@
 
       allEvents = result.events || [];
       renderTimeline(allEvents);
+      scrollToToday();
       updateStatus({ events: `${allEvents.length} events` });
       pollRAGStatus();
     }
@@ -873,6 +1165,9 @@
       document.getElementById('yearLabel').textContent = currentYear;
       highlightedIds.clear();
       closeSearchPanel();
+      lastSearchEvents = null;
+      renderVisualTimeline([]);
+      renderRadialView([]);
       loadEvents();
     }
 
@@ -910,6 +1205,125 @@
       }
     }
 
+    // ── Scroll to today ───────────────────────────────────────────────────
+    function scrollToToday() {
+      if (currentView !== 'list' || new Date().getFullYear() !== currentYear) return;
+      const m = new Date().getMonth();
+      const el = document.querySelector(`#timeline .month-section[data-month="${m}"]`);
+      if (el) el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    }
+
+    // ── View switching ────────────────────────────────────────────────────
+    function setView(name) {
+      currentView = name;
+      document.getElementById('visualTimeline').classList.toggle('hidden', name !== 'timeline');
+      document.getElementById('radialView').classList.toggle('hidden',     name !== 'radial');
+      document.getElementById('timeline').classList.toggle('hidden',       name !== 'list');
+      document.querySelectorAll('.view-tab').forEach(btn =>
+        btn.classList.toggle('active', btn.dataset.view === name)
+      );
+      if (name === 'list')    scrollToToday();
+      if (name === 'radial'   && lastSearchEvents) renderRadialView(lastSearchEvents);
+      if (name === 'timeline' && lastSearchEvents) renderVisualTimeline(lastSearchEvents);
+    }
+
+    // ── Visual timeline rendering ─────────────────────────────────────────
+    function renderVisualTimeline(events) {
+      const container = document.getElementById('visualTimeline');
+
+      if (!events || events.length === 0) {
+        container.innerHTML = `<div class="vt-empty">
+          <div style="font-size:28px;opacity:0.3">&#128337;</div>
+          <div>Search to explore events on the timeline</div>
+        </div>`;
+        return;
+      }
+
+      const DAY_MS = 86400000;
+      const toDay  = raw => { const d = new Date(raw); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+
+      const items = events.map(ev => {
+        const startRaw = ev.start?.dateTime || ev.start?.date;
+        const endRaw   = ev.end?.dateTime   || ev.end?.date   || startRaw;
+        let s = toDay(startRaw);
+        let e = toDay(endRaw);
+        // Google all-day end is next-day exclusive — step back one day
+        if (!ev.start?.dateTime && e > s) e -= DAY_MS;
+        if (e < s) e = s;
+        return { ev, s, e };
+      }).filter(i => !isNaN(i.s));
+
+      if (!items.length) {
+        container.innerHTML = `<div class="vt-empty">No datable events found</div>`;
+        return;
+      }
+
+      vtItems = items;
+
+      const allMs  = items.flatMap(i => [i.s, i.e]);
+      const minDay = Math.min(...allMs) - DAY_MS;
+      const maxDay = Math.max(...allMs) + 2 * DAY_MS;
+      const total  = Math.round((maxDay - minDay) / DAY_MS);
+      const W      = Math.min(Math.max(Math.floor((container.clientWidth - 40) / total), 28), 64);
+      const today  = toDay(new Date());
+
+      // ── Header ────────────────────────────────────────────────────────────
+      let header = '', prevMonth = -1;
+      for (let d = 0; d < total; d++) {
+        const ms     = minDay + d * DAY_MS;
+        const date   = new Date(ms);
+        const month  = date.getMonth();
+        const isWknd = date.getDay() === 0 || date.getDay() === 6;
+        const isTdy  = ms === today;
+        const mLabel = month !== prevMonth
+          ? date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' })
+          : '';
+        prevMonth = month;
+        header += `<div class="vt-day-col${isWknd ? ' vt-weekend' : ''}${isTdy ? ' vt-today-col' : ''}" style="width:${W}px">
+          <div class="vt-month-tick">${escHtml(mLabel)}</div>
+          <div class="vt-day-num">${date.getDate()}</div>
+        </div>`;
+      }
+
+      // ── Grid lines ────────────────────────────────────────────────────────
+      let grid = '';
+      for (let d = 0; d < total; d++) {
+        const isWknd = new Date(minDay + d * DAY_MS).getDay() % 6 === 0;
+        grid += `<div class="vt-grid-line${isWknd ? ' vt-weekend-line' : ''}" style="left:${d * W}px"></div>`;
+      }
+
+      // ── Today line ────────────────────────────────────────────────────────
+      const todayOff  = Math.round((today - minDay) / DAY_MS);
+      const todayLine = todayOff >= 0 && todayOff < total
+        ? `<div class="vt-today-line" style="left:${todayOff * W + Math.round(W / 2)}px"></div>`
+        : '';
+
+      // ── Event bars ────────────────────────────────────────────────────────
+      let rows = '';
+      items.forEach(({ ev, s, e }, i) => {
+        const off   = Math.round((s - minDay) / DAY_MS);
+        const span  = Math.round((e - s) / DAY_MS) + 1;
+        const left  = off * W;
+        const width = Math.max(span * W - 4, W - 4);
+        const title = ev.summary || '(No title)';
+        const color = ev._calendarColor || 'var(--accent)';
+        rows += `<div class="vt-event-row">
+          <div class="vt-event-bar" data-idx="${i}" style="left:${left}px;width:${width}px;background:${escHtml(color)}">
+            <span class="vt-event-label">${escHtml(title)}</span>
+          </div>
+        </div>`;
+      });
+
+      container.innerHTML = `
+        <div class="vt-canvas" style="width:${total * W + 40}px">
+          <div class="vt-header-row">${header}</div>
+          <div class="vt-events-area">
+            <div class="vt-grid">${grid}${todayLine}</div>
+            <div class="vt-event-rows">${rows}</div>
+          </div>
+        </div>`;
+    }
+
     // ── Timeline rendering ─────────────────────────────────────────────────
     function renderTimelineLoading() {
       document.getElementById('timeline').innerHTML =
@@ -935,9 +1349,9 @@
       grouped.forEach(g => { monthMap[g.month] = g; });
 
       let html = '';
-      for (let m = 0; m < 12; m++) {
+      for (let m = 11; m >= 0; m--) {
         const group = monthMap[m];
-        html += `<div class="month-section">`;
+        html += `<div class="month-section" data-month="${m}">`;
         html += `<div class="month-header">
           <span class="month-name">${MONTHS[m]}</span>
           <div class="month-line"></div>
@@ -956,8 +1370,8 @@
     function renderEventRow(event) {
       const { dateStr, timeStr } = formatEvent(event);
       const title = escHtml(event.summary || '(No title)');
-      const id = escHtml(event.id || '');
-      const highlighted = highlightedIds.has(event.id) ? ' highlighted' : '';
+      const eventId = event.id || '';
+      const highlighted = highlightedIds.has(eventId) ? ' highlighted' : '';
 
       let detail = '';
       if (event.location) detail += detailLine('Location', event.location);
@@ -973,7 +1387,7 @@
       if (startFull) detail += detailLine('Start', formatFull(startFull));
       if (endFull)   detail += detailLine('End',   formatFull(endFull));
 
-      return `<div class="event-row${highlighted}" data-id="${id}" onclick="toggleEventRow(this)">
+      return `<div class="event-row${highlighted}" data-id="${eventId}" onclick="toggleEventRow(this)">
         <div class="event-summary">
           <span class="event-date">${dateStr}</span>
           <span class="event-time">${timeStr}</span>
@@ -1021,23 +1435,48 @@
         document.getElementById('searchResult').innerHTML =
           `<div class="search-error">&#9888; ${escHtml(result.error)}</div>`;
         document.getElementById('searchPanelTitle').textContent = 'Error';
+      } else if (!result.events || result.events.length === 0) {
+        document.getElementById('searchResult').innerHTML =
+          `<div class="search-no-results">Nothing found</div>`;
+        document.getElementById('searchPanelTitle').textContent = 'Search';
+        highlightedIds = new Set();
+        refreshHighlights();
       } else {
         const answerHtml = typeof marked !== 'undefined'
           ? marked.parse(result.answer || '')
           : escHtml(result.answer || '');
 
-        const hitIds = (result.events || []).map(e => e.id);
-        const hitsNote = hitIds.length
-          ? `<div class="search-hits" style="margin-top:8px">Based on ${hitIds.length} relevant event${hitIds.length !== 1 ? 's' : ''}</div>`
-          : '';
+        const hitIds = result.events.map(e => e.id);
+        const hitsNote = `<div class="search-hits" style="margin-top:8px">Based on ${hitIds.length} relevant event${hitIds.length !== 1 ? 's' : ''}</div>`;
+
+        let workingHtml = '';
+        if (showWorking && result.hits?.length) {
+          const rows = result.hits.map(h => {
+            const pct = Math.round(h.score * 100);
+            const barW = Math.round(h.score * 60);
+            return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+              <span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent);min-width:32px;text-align:right">${pct}%</span>
+              <div style="width:60px;height:3px;background:var(--border);border-radius:2px;flex-shrink:0">
+                <div style="width:${barW}px;height:100%;background:var(--accent);border-radius:2px;opacity:0.7"></div>
+              </div>
+              <span style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(h.title)}</span>
+            </div>`;
+          }).join('');
+          workingHtml = `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--muted2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:5px">Matched events</div>
+            ${rows}
+          </div>`;
+        }
 
         document.getElementById('searchResult').innerHTML =
-          `<div class="search-answer">${answerHtml}</div>${hitsNote}`;
+          `<div class="search-answer">${answerHtml}</div>${hitsNote}${workingHtml}`;
         document.getElementById('searchPanelTitle').textContent = 'AI Answer';
 
-        // Highlight matched events in timeline
-        highlightedIds = new Set(hitIds);
+        highlightedIds   = new Set(hitIds);
+        lastSearchEvents = result.events;
         refreshHighlights();
+        renderVisualTimeline(result.events);
+        renderRadialView(result.events);
       }
 
       btn.disabled = false;
@@ -1045,8 +1484,8 @@
 
     function refreshHighlights() {
       document.querySelectorAll('.event-row').forEach(el => {
-        const id = el.dataset.id;
-        el.classList.toggle('highlighted', highlightedIds.has(id));
+        const id = el.getAttribute('data-id');
+        el.classList.toggle('highlighted', !!id && highlightedIds.has(id));
       });
       // Scroll first highlighted event into view
       const first = document.querySelector('.event-row.highlighted');
@@ -1064,8 +1503,32 @@
     }
 
     // ── Settings ──────────────────────────────────────────────────────────
-    function toggleSettings() {
+    async function toggleSettings() {
       document.getElementById('settingsOverlay').classList.toggle('open');
+      if (document.getElementById('settingsOverlay').classList.contains('open') && isAuthenticated) {
+        loadCalendarList();
+      }
+    }
+
+    async function loadCalendarList() {
+      const section = document.getElementById('calendarsSection');
+      const list    = document.getElementById('calendarList');
+      section.style.display = 'block';
+      list.innerHTML = `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted2)">Loading…</span>`;
+
+      const result = await window.electronAPI.getCalendars();
+      if (result.error || !result.calendars?.length) {
+        list.innerHTML = `<span style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted2)">${result.error || 'No calendars found'}</span>`;
+        return;
+      }
+
+      list.innerHTML = result.calendars.map(cal => `
+        <div class="calendar-item">
+          <div class="calendar-dot" style="background:${escHtml(cal.color || '#888')}"></div>
+          <span class="calendar-name">${escHtml(cal.name)}</span>
+          ${cal.primary ? '<span class="calendar-primary">primary</span>' : ''}
+        </div>
+      `).join('');
     }
 
     function closeSettingsOverlay() {
@@ -1080,18 +1543,28 @@
       document.getElementById('sClientId').value     = cfg.clientId     || '';
       document.getElementById('sClientSecret').value = cfg.clientSecret || '';
       document.getElementById('sEndpoint').value     = cfg.endpoint     || '';
-      document.getElementById('sModel').value        = cfg.model        || '';
+      document.getElementById('sModel').value          = cfg.model          || '';
+      document.getElementById('sEmbeddingModel').value = cfg.embeddingModel || '';
+      showWorking = !!cfg.showWorking;
+      document.getElementById('sShowWorking').checked = showWorking;
+      const t = parseFloat(cfg.similarityThreshold) || 0.4;
+      document.getElementById('sThreshold').value = t;
+      document.getElementById('thresholdValue').textContent = t.toFixed(2);
     }
 
     async function saveSettings() {
       const cfg = await window.electronAPI.getConfig();
       await window.electronAPI.saveConfig({
         ...cfg,
-        clientId:     document.getElementById('sClientId').value.trim(),
-        clientSecret: document.getElementById('sClientSecret').value.trim(),
-        endpoint:     document.getElementById('sEndpoint').value.trim(),
-        model:        document.getElementById('sModel').value.trim()
+        clientId:            document.getElementById('sClientId').value.trim(),
+        clientSecret:        document.getElementById('sClientSecret').value.trim(),
+        endpoint:            document.getElementById('sEndpoint').value.trim(),
+        model:               document.getElementById('sModel').value.trim(),
+        embeddingModel:      document.getElementById('sEmbeddingModel').value.trim(),
+        similarityThreshold: parseFloat(document.getElementById('sThreshold').value),
+        showWorking:         document.getElementById('sShowWorking').checked
       });
+      showWorking = document.getElementById('sShowWorking').checked;
       closeSettingsOverlay();
     }
 
@@ -1173,6 +1646,365 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
     }
+
+    // ── Radial view — 3D projection ───────────────────────────────────────
+
+    function rotate3D(x, y, z, rotX, rotY) {
+      const cy = Math.cos(rotY), sy = Math.sin(rotY);      // Y-axis spin
+      const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
+      const cx2 = Math.cos(rotX), sx2 = Math.sin(rotX);   // X-axis tilt
+      return [x1, y * cx2 - z1 * sx2, y * sx2 + z1 * cx2];
+    }
+
+    function updateRadialViewRotation(rotX, rotY) {
+      if (!radialItems.length) return;
+      const svg = document.getElementById('radialSvg');
+      if (!svg) return;
+      const W = parseFloat(svg.getAttribute('width'));
+      const H = parseFloat(svg.getAttribute('height'));
+      const cx = W / 2, cy = H / 2;
+      const FOV    = Math.max(W, H) * 0.9;
+      const maxRad = Math.max(...radialItems.map(i => i.radius));
+
+      // Step 1: project all 3D positions to screen space
+      radialItems.forEach(item => {
+        const [rx, ry, rz] = rotate3D(
+          Math.cos(item.baseAngle) * item.radius, 0,
+          Math.sin(item.baseAngle) * item.radius, rotX, rotY
+        );
+        const scale = FOV / (FOV + rz);
+        item._projX = cx + rx * scale;
+        item._projY = cy + ry * scale;
+        item._rz    = rz;
+      });
+
+      // Step 2: update SVG attributes using depth cues
+      document.querySelectorAll('.radial-spike').forEach(el => {
+        const item = radialItems[parseInt(el.dataset.idx)];
+        if (!item) return;
+        const depth   = (maxRad - item._rz) / (2 * maxRad); // 0=back 1=front
+        const opacity = Math.max(0.1, 0.18 + depth * 0.82);
+        const dotR    = 2.5 + depth * 3.5;
+        const sw      = 0.6 + depth * 1.6;
+        const line = el.querySelector('.spike-line');
+        const dot  = el.querySelector('.spike-dot');
+        line?.setAttribute('x2', item._projX.toFixed(1));
+        line?.setAttribute('y2', item._projY.toFixed(1));
+        line?.setAttribute('stroke-width', sw.toFixed(2));
+        line?.setAttribute('opacity', opacity.toFixed(2));
+        dot?.setAttribute('cx', item._projX.toFixed(1));
+        dot?.setAttribute('cy', item._projY.toFixed(1));
+        dot?.setAttribute('r',  dotR.toFixed(1));
+        dot?.setAttribute('opacity', Math.min(1, opacity + 0.1).toFixed(2));
+      });
+
+      // Step 3: painter's algorithm — far spikes drawn first (under near ones)
+      const grp = document.getElementById('spikesGroup');
+      if (grp) {
+        [...document.querySelectorAll('.radial-spike')]
+          .sort((a, b) => radialItems[parseInt(b.dataset.idx)]._rz
+                        - radialItems[parseInt(a.dataset.idx)]._rz)
+          .forEach(el => grp.appendChild(el));
+      }
+    }
+
+    function renderRadialView(events) {
+      const container = document.getElementById('radialView');
+      radialItems = [];
+
+      if (!events || events.length === 0) {
+        container.innerHTML = `<div class="vt-empty">
+          <div style="font-size:28px;opacity:0.25">&#10022;</div>
+          <div>Search to explore events in radial view</div>
+        </div>`;
+        return;
+      }
+
+      const DAY_MS = 86400000;
+      const raw = events.map(ev => {
+        const sRaw = ev.start?.dateTime || ev.start?.date;
+        const eRaw = ev.end?.dateTime   || ev.end?.date || sRaw;
+        let dur = new Date(eRaw) - new Date(sRaw);
+        if (!ev.start?.dateTime) dur = Math.max(1, Math.round(dur / DAY_MS)) * 8 * 3600000;
+        if (dur <= 0) dur = 3600000;
+        return { ev, dur };
+      }).filter(i => !isNaN(i.dur));
+
+      if (!raw.length) { container.innerHTML = '<div class="vt-empty">No events to display</div>'; return; }
+
+      const W  = container.clientWidth  || 800;
+      const H  = container.clientHeight || 400;
+      const cx = W / 2, cy = H / 2;
+      const PAD  = 72;
+      const maxR = Math.min(cx, cy) - PAD;
+      const minR = Math.max(maxR * 0.15, 24);
+
+      const maxDur = Math.max(...raw.map(i => i.dur));
+      const minDur = Math.min(...raw.map(i => i.dur));
+      const durRng = maxDur - minDur;
+
+      radialItems = raw.map((item, i) => {
+        const baseAngle = (i / raw.length) * Math.PI * 2 - Math.PI / 2;
+        const t      = durRng > 0 ? (item.dur - minDur) / durRng : 0.5;
+        const radius = minR + t * (maxR - minR);
+        const color  = item.ev._calendarColor || '#ff9f4a';
+        return { ...item, baseAngle, radius, color, _projX: cx, _projY: cy, _rz: 0 };
+      });
+
+      const rings = [0.33, 0.66, 1.0].map(t => {
+        const r = minR + t * (maxR - minR);
+        return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1" pointer-events="none"/>`;
+      }).join('');
+
+      const durLabel = ms => {
+        const h = ms / 3600000;
+        if (h < 1)  return `${Math.round(h * 60)}m`;
+        if (h < 24) return `${Number.isInteger(h) ? h : h.toFixed(1)}h`;
+        return `${Math.round(h / 8)}d`;
+      };
+      const ringLabels = [0.33, 0.66, 1.0].map(t => {
+        const r = minR + t * (maxR - minR);
+        return `<text x="${cx + r + 4}" y="${cy + 3}" fill="rgba(255,255,255,0.15)"
+                font-family="DM Mono,monospace" font-size="9" pointer-events="none">${escHtml(durLabel(minDur + t * durRng))}</text>`;
+      }).join('');
+
+      // Spike placeholders — updateRadialViewRotation fills in real positions
+      const spikes = radialItems.map((s, i) =>
+        `<g class="radial-spike" data-idx="${i}">
+          <line class="spike-line" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy}"
+                stroke="${escHtml(s.color)}" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+          <circle class="spike-dot" cx="${cx}" cy="${cy}" r="5" fill="${escHtml(s.color)}" opacity="0.9"/>
+        </g>`
+      ).join('');
+
+      container.innerHTML = `
+        <svg id="radialSvg" width="${W}" height="${H}" style="display:block;cursor:grab;user-select:none">
+          <g id="spikesGroup">
+            ${rings}${ringLabels}${spikes}
+            <circle cx="${cx}" cy="${cy}" r="4"  fill="#ff9f4a" opacity="0.75" pointer-events="none"/>
+            <circle cx="${cx}" cy="${cy}" r="13" fill="none" stroke="#ff9f4a" stroke-width="0.75" opacity="0.22" pointer-events="none"/>
+          </g>
+        </svg>
+        <div style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+             font-family:'DM Mono',monospace;font-size:9px;color:rgba(240,237,232,0.18);pointer-events:none">
+          drag to rotate · hover for details
+        </div>`;
+
+      updateRadialViewRotation(radialRotX, radialRotY);
+    }
+
+    function highlightRadialSpike(idx) {
+      if (!radialItems.length) return;
+      const maxRad = Math.max(...radialItems.map(i => i.radius));
+      document.querySelectorAll('.radial-spike').forEach(el => {
+        const i    = parseInt(el.dataset.idx);
+        const item = radialItems[i];
+        if (!item) return;
+        const depth = (maxRad - (item._rz || 0)) / (2 * maxRad);
+        const line  = el.querySelector('.spike-line');
+        const dot   = el.querySelector('.spike-dot');
+        if (i === idx) {
+          line?.setAttribute('stroke-width', '3');   line?.setAttribute('opacity', '1');
+          dot?.setAttribute('r', '8');               dot?.setAttribute('opacity', '1');
+        } else {
+          const d = Math.max(0.05, (0.18 + depth * 0.82) * 0.18);
+          line?.setAttribute('stroke-width', '0.8'); line?.setAttribute('opacity', d.toFixed(2));
+          dot?.setAttribute('r', '2.5');             dot?.setAttribute('opacity', d.toFixed(2));
+        }
+      });
+    }
+
+    function resetRadialSpikes() {
+      updateRadialViewRotation(radialRotX, radialRotY);
+    }
+
+    function initRadialInteraction() {
+      const container = document.getElementById('radialView');
+
+      container.addEventListener('mousedown', e => {
+        if (currentView !== 'radial') return;
+        radialDragging    = true;
+        radialDragStartX  = e.clientX;
+        radialDragStartY  = e.clientY;
+        radialDragStartRX = radialRotX;
+        radialDragStartRY = radialRotY;
+        const svg = document.getElementById('radialSvg');
+        if (svg) svg.style.cursor = 'grabbing';
+        hideVtTooltip();
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!radialDragging) return;
+        radialDragging = false;
+        const svg = document.getElementById('radialSvg');
+        if (svg) svg.style.cursor = 'grab';
+      });
+
+      container.addEventListener('mousemove', e => {
+        if (currentView !== 'radial') return;
+
+        if (radialDragging) {
+          const dx = e.clientX - radialDragStartX;
+          const dy = e.clientY - radialDragStartY;
+          radialRotY = radialDragStartRY + dx * 0.008;
+          radialRotX = Math.max(-Math.PI * 0.85, Math.min(Math.PI * 0.85,
+                         radialDragStartRX + dy * 0.008));
+          updateRadialViewRotation(radialRotX, radialRotY);
+          return;
+        }
+
+        // Not dragging — proximity tooltip only
+        const svg = document.getElementById('radialSvg');
+        if (!svg || !radialItems.length) return;
+        const rect = svg.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        let minDist = Infinity, nearest = -1;
+        radialItems.forEach((item, i) => {
+          const d = Math.hypot(mx - item._projX, my - item._projY);
+          if (d < minDist) { minDist = d; nearest = i; }
+        });
+
+        if (minDist < 22 && nearest >= 0) {
+          showVtTooltip(radialItems[nearest]);
+          positionTooltip(e.clientX, e.clientY);
+          highlightRadialSpike(nearest);
+        } else {
+          hideVtTooltip();
+          resetRadialSpikes();
+        }
+      });
+
+      container.addEventListener('mouseleave', () => {
+        if (!radialDragging) { hideVtTooltip(); resetRadialSpikes(); }
+        radialDragging = false;
+        const svg = document.getElementById('radialSvg');
+        if (svg) svg.style.cursor = 'grab';
+      });
+    }
+
+    // ── Visual timeline tooltip ────────────────────────────────────────────
+    function showVtTooltip(item) {
+      const tt      = document.getElementById('vtTooltip');
+      const DAY_MS  = 86400000;
+      const ev      = item.ev;
+      const isAllDay = !ev.start?.dateTime;
+      // Radial items don't carry s/e; derive from raw event dates
+      let s = item.s, e = item.e;
+      if (s === undefined) {
+        const toDay = raw => { const d = new Date(raw); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+        s = toDay(ev.start?.dateTime || ev.start?.date);
+        e = toDay(ev.end?.dateTime   || ev.end?.date   || ev.start?.dateTime || ev.start?.date);
+        if (!isAllDay && e > s) { /* keep as-is for timed events */ }
+        else if (e > s) e -= DAY_MS; // all-day: exclusive end
+        if (e < s) e = s;
+      }
+
+      const fmt = (ms, opts) => new Date(ms).toLocaleDateString('en-GB', opts);
+      const datOpts = { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' };
+
+      const sLabel = fmt(s, datOpts);
+      const eLabel = fmt(e, datOpts);
+      const dateHtml = s === e
+        ? row('Date', sLabel)
+        : row('Dates', `${sLabel}<br><span style="opacity:.5">→</span> ${eLabel}`);
+
+      let timeHtml = '';
+      if (!isAllDay) {
+        const st = new Date(ev.start.dateTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        const et = new Date(ev.end.dateTime).toLocaleTimeString('en-GB',   { hour: '2-digit', minute: '2-digit' });
+        timeHtml = row('Time', `${st} – ${et}`);
+      }
+
+      const color = ev._calendarColor || 'var(--accent)';
+      const calHtml = ev._calendarName
+        ? `<div class="vtt-row"><span class="vtt-key">Calendar</span>
+            <span class="vtt-val vtt-cal">
+              <span class="vtt-cal-dot" style="background:${escHtml(color)}"></span>
+              ${escHtml(ev._calendarName)}
+            </span></div>`
+        : '';
+
+      const locHtml = ev.location ? row('Location', ev.location) : '';
+
+      let descHtml = '';
+      if (ev.description) {
+        const plain = ev.description.replace(/<[^>]*>/g, '').trim();
+        if (plain) {
+          const snippet = plain.length > 180 ? plain.substring(0, 180) + '…' : plain;
+          descHtml = `<hr class="vtt-divider">
+            <div class="vtt-row"><span class="vtt-key">Note</span>
+            <span class="vtt-val vtt-muted">${escHtml(snippet)}</span></div>`;
+        }
+      }
+
+      const att = ev.attendees;
+      const attHtml = att?.length
+        ? row('People', att.slice(0, 5).map(a => a.displayName || a.email).join(', ')
+            + (att.length > 5 ? ` +${att.length - 5}` : ''))
+        : '';
+
+      tt.innerHTML = `
+        <div class="vtt-title">${escHtml(ev.summary || '(No title)')}</div>
+        <div class="vtt-body">${dateHtml}${timeHtml}${calHtml}${locHtml}${attHtml}${descHtml}</div>`;
+      tt.style.display = 'block';
+    }
+
+    function row(key, val) {
+      return `<div class="vtt-row"><span class="vtt-key">${escHtml(key)}</span><span class="vtt-val">${val}</span></div>`;
+    }
+
+    function hideVtTooltip() {
+      document.getElementById('vtTooltip').style.display = 'none';
+    }
+
+    function positionTooltip(cx, cy) {
+      const tt = document.getElementById('vtTooltip');
+      if (tt.style.display === 'none') return;
+      const pad = 14;
+      const w   = tt.offsetWidth;
+      const h   = tt.offsetHeight;
+      let x = cx + pad;
+      let y = cy + pad;
+      if (x + w > window.innerWidth  - pad) x = cx - w - pad;
+      if (y + h > window.innerHeight - pad) y = cy - h - pad;
+      if (x < pad) x = pad;
+      if (y < pad) y = pad;
+      tt.style.left = x + 'px';
+      tt.style.top  = y + 'px';
+    }
+
+    // Initialise radial interaction (listeners on stable container)
+    initRadialInteraction();
+
+    // Re-render size-dependent views when window is resized
+    let _resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(_resizeTimer);
+      _resizeTimer = setTimeout(() => {
+        if (lastSearchEvents) {
+          if (currentView === 'radial')   renderRadialView(lastSearchEvents);
+          if (currentView === 'timeline') renderVisualTimeline(lastSearchEvents);
+        }
+      }, 180);
+    });
+
+    // Delegated listeners — attach once to the stable container
+    ;(function () {
+      const vt = document.getElementById('visualTimeline');
+      vt.addEventListener('mouseover', e => {
+        const bar = e.target.closest('.vt-event-bar');
+        if (bar) {
+          const item = vtItems[parseInt(bar.dataset.idx, 10)];
+          if (item) showVtTooltip(item);
+        }
+      });
+      vt.addEventListener('mouseout', e => {
+        if (!e.relatedTarget?.closest('.vt-event-bar')) hideVtTooltip();
+      });
+      vt.addEventListener('mousemove', e => positionTooltip(e.clientX, e.clientY));
+    })();
 
     // ── Boot ───────────────────────────────────────────────────────────────
     init();

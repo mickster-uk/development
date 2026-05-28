@@ -1,12 +1,13 @@
 const axios = require('axios');
 
-const EMBEDDING_MODEL = 'nomic-embed-text';
-const SIMILARITY_THRESHOLD = 0.25;
+const DEFAULT_EMBEDDING_MODEL = 'nomic-embed-text';
+const SIMILARITY_THRESHOLD = 0.4;
 const DEFAULT_TOP_K = 5;
 
 class EventRAGService {
-  constructor(endpoint) {
+  constructor(endpoint, embeddingModel = DEFAULT_EMBEDDING_MODEL) {
     this.endpoint = endpoint;
+    this.embeddingModel = embeddingModel;
     this.items = [];
     this.indexed = false;
     this.indexing = false;
@@ -21,6 +22,19 @@ class EventRAGService {
     this.progress = { current: 0, total: events.length };
     const items = [];
 
+    // Fail fast: test the first event before committing to the full loop
+    if (events.length > 0) {
+      try {
+        await this._embed(eventToText(events[0]));
+      } catch (e) {
+        const detail = e.response?.data?.error || e.message;
+        this.lastError = `Embedding failed: ${detail}. Run: ollama pull ${this.embeddingModel}`;
+        this.indexed = true;
+        this.indexing = false;
+        return { count: 0 };
+      }
+    }
+
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
       const text = eventToText(event);
@@ -28,7 +42,6 @@ class EventRAGService {
         const embedding = await this._embed(text);
         items.push({ text, event, embedding });
       } catch (e) {
-        this.lastError = `Embedding failed — is "${EMBEDDING_MODEL}" pulled in Ollama?`;
         console.error('EventRAG embed failed:', e.message);
       }
       this.progress = { current: i + 1, total: events.length };
@@ -41,7 +54,17 @@ class EventRAGService {
     return { count: items.length };
   }
 
-  async retrieve(query, topK = DEFAULT_TOP_K) {
+  retrieveByDateRange(start, end) {
+    if (!this.items.length) return [];
+    return this.items.filter(item => {
+      const raw = item.event.start?.dateTime || item.event.start?.date;
+      if (!raw) return false;
+      const d = new Date(raw);
+      return d >= start && d < end;
+    });
+  }
+
+  async retrieve(query, topK = DEFAULT_TOP_K, threshold = SIMILARITY_THRESHOLD) {
     if (!this.indexed || !this.items.length) return [];
     let queryEmb;
     try {
@@ -51,7 +74,7 @@ class EventRAGService {
     }
     return this.items
       .map(item => ({ ...item, score: this._cosine(queryEmb, item.embedding) }))
-      .filter(item => item.score > SIMILARITY_THRESHOLD)
+      .filter(item => item.score > threshold)
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
   }
@@ -69,8 +92,8 @@ class EventRAGService {
   async _embed(text) {
     const res = await axios.post(
       `${this.endpoint}/api/embeddings`,
-      { model: EMBEDDING_MODEL, prompt: text },
-      { timeout: 30000 }
+      { model: this.embeddingModel, prompt: text },
+      { timeout: 8000 }
     );
     if (!res.data?.embedding) throw new Error('No embedding returned');
     return res.data.embedding;

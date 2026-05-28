@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   authStatus:     ()       => ipcRenderer.invoke('auth-status'),
   authenticate:   ()       => ipcRenderer.invoke('authenticate'),
   signOut:        ()       => ipcRenderer.invoke('sign-out'),
+  getCalendars:   ()       => ipcRenderer.invoke('get-calendars'),
   getEvents:      (year)   => ipcRenderer.invoke('get-events', year),
   ragStatus:      ()       => ipcRenderer.invoke('rag-status'),
   search:         (params) => ipcRenderer.invoke('search', params),

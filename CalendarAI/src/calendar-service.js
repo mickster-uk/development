@@ -88,26 +88,59 @@ class CalendarService {
   async getEvents(year) {
     await this.oauth2Client.getAccessToken();
 
+    const calListRes = await this.calendar.calendarList.list();
+    const calendarItems = calListRes.data.items || [];
+    const calendarNameById  = Object.fromEntries(calendarItems.map(c => [c.id, c.summary]));
+    const calendarColorById = Object.fromEntries(calendarItems.map(c => [c.id, c.backgroundColor || null]));
+
     const timeMin = new Date(year, 0, 1).toISOString();
     const timeMax = new Date(year + 1, 0, 1).toISOString();
-    const events = [];
-    let pageToken;
 
-    do {
-      const res = await this.calendar.events.list({
-        calendarId: 'primary',
-        timeMin,
-        timeMax,
-        maxResults: 250,
-        singleEvents: true,
-        orderBy: 'startTime',
-        pageToken
-      });
-      events.push(...(res.data.items || []));
-      pageToken = res.data.nextPageToken;
-    } while (pageToken);
+    const perCalendar = await Promise.all(calendarItems.map(async ({ id: calendarId }) => {
+      const events = [];
+      let pageToken;
+      do {
+        try {
+          const res = await this.calendar.events.list({
+            calendarId,
+            timeMin,
+            timeMax,
+            maxResults: 250,
+            singleEvents: true,
+            orderBy: 'startTime',
+            pageToken
+          });
+          const items = res.data.items || [];
+          items.forEach(ev => {
+            ev._calendarName  = calendarNameById[calendarId]  || calendarId;
+            ev._calendarColor = calendarColorById[calendarId] || null;
+          });
+          events.push(...items);
+          pageToken = res.data.nextPageToken;
+        } catch (e) {
+          console.error(`Skipping calendar ${calendarId}:`, e.message);
+          break;
+        }
+      } while (pageToken);
+      return events;
+    }));
 
-    return events;
+    return perCalendar.flat().sort((a, b) => {
+      const aDate = a.start?.dateTime || a.start?.date || '';
+      const bDate = b.start?.dateTime || b.start?.date || '';
+      return aDate.localeCompare(bDate);
+    });
+  }
+
+  async getCalendars() {
+    await this.oauth2Client.getAccessToken();
+    const res = await this.calendar.calendarList.list();
+    return (res.data.items || []).map(cal => ({
+      id: cal.id,
+      name: cal.summary,
+      primary: cal.primary || false,
+      color: cal.backgroundColor || null
+    }));
   }
 
   signOut() {
@@ -119,6 +152,7 @@ class CalendarService {
     const start = event.start?.dateTime || event.start?.date || '';
     const end = event.end?.dateTime || event.end?.date || '';
     const parts = [`Title: ${event.summary || '(No title)'}`];
+    if (event._calendarName) parts.push(`Calendar: ${event._calendarName}`);
     if (start) parts.push(`Start: ${start}`);
     if (end) parts.push(`End: ${end}`);
     if (event.location) parts.push(`Location: ${event.location}`);
