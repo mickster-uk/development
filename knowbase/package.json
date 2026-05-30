@@ -7,9 +7,13 @@
     "start": "ELECTRON_RUN_AS_NODE= electron .",
     "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
     "build-icons": "node scripts/generate-icons.js",
+    "prebuild": "npm version patch --no-git-tag-version",
     "build": "electron-builder --publish never",
+    "prebuild:mac": "npm version patch --no-git-tag-version",
     "build:mac": "electron-builder --mac --publish never",
+    "prebuild:win": "npm version patch --no-git-tag-version",
     "build:win": "electron-builder --win --publish never",
+    "prebuild:linux": "npm version patch --no-git-tag-version",
     "build:linux": "electron-builder --linux --publish never"
   },
   "keywords": [

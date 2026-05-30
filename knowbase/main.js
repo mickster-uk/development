@@ -19,6 +19,68 @@ const MARKDOWN_EXT = new Set([
   '.mdwn', '.mdtxt', '.mdtext', '.txt'
 ]);
 
+const CHROME_BOOKMARKS_CANDIDATES = [
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Google', 'Chrome', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Google', 'Chrome Beta', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Google', 'Chrome Dev', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Google', 'Chrome Canary', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Chromium', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'BraveSoftware', 'Brave-Browser', 'Default', 'Bookmarks'),
+  path.join(app.getPath('home'), 'Library', 'Application Support', 'Microsoft Edge', 'Default', 'Bookmarks'),
+];
+
+function findChromeBookmarksFile() {
+  return CHROME_BOOKMARKS_CANDIDATES.find(p => fs.existsSync(p)) || null;
+}
+
+function collectBookmarkLinks(node, links) {
+  if (!node || typeof node !== 'object') return;
+  if (node.type === 'url' && node.url) {
+    links.push({ title: node.name || node.url, url: node.url });
+    return;
+  }
+  if (Array.isArray(node.children)) {
+    node.children.forEach(child => collectBookmarkLinks(child, links));
+  }
+}
+
+function searchReadingListFolders(node, matches) {
+  if (!node || typeof node !== 'object') return;
+  if (node.type === 'folder' && String(node.name || '').toLowerCase() === 'reading list') {
+    matches.push(node);
+  }
+  if (Array.isArray(node.children)) {
+    node.children.forEach(child => searchReadingListFolders(child, matches));
+  }
+}
+
+function extractReadingListLinks(bookmarks) {
+  const roots = bookmarks.roots || {};
+  const folders = [];
+  ['reading_list', 'other', 'bookmark_bar', 'synced'].forEach(rootName => {
+    const root = roots[rootName];
+    if (root) searchReadingListFolders(root, folders);
+  });
+  if (roots.reading_list && typeof roots.reading_list === 'object') {
+    folders.push(roots.reading_list);
+  }
+  const links = [];
+  if (folders.length > 0) {
+    folders.forEach(folder => collectBookmarkLinks(folder, links));
+    return links;
+  }
+  Object.values(roots).forEach(root => collectBookmarkLinks(root, links));
+  return links;
+}
+
+function buildReadingListMarkdown(links) {
+  const lines = ['# Reading List', ''];
+  for (const item of links) {
+    lines.push(`- [${item.title}](${item.url})`);
+  }
+  return lines.join('\n') + '\n';
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWindow;
 let tray;
@@ -166,6 +228,28 @@ ipcMain.handle('open-folder-dialog', async () => {
     return { success: true, folderPath };
   }
   return { success: false, canceled: true };
+});
+
+ipcMain.handle('import-chrome-reading-list', async (_, folderPath) => {
+  const bookmarksFile = findChromeBookmarksFile();
+  if (!bookmarksFile) {
+    return { success: false, error: 'Could not find Chrome bookmarks file. Open Chrome or install a supported browser first.' };
+  }
+
+  try {
+    const raw = fs.readFileSync(bookmarksFile, 'utf-8');
+    const bookmarks = JSON.parse(raw);
+    const links = extractReadingListLinks(bookmarks);
+    if (!links.length) {
+      return { success: false, error: 'No Reading List entries were found in Chrome bookmarks.' };
+    }
+
+    const outputFile = path.join(folderPath, 'Reading List.md');
+    fs.writeFileSync(outputFile, buildReadingListMarkdown(links), 'utf-8');
+    return { success: true, filePath: outputFile, count: links.length };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 });
 
 ipcMain.handle('get-config',    ()          => loadConfig());

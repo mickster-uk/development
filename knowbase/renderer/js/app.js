@@ -29,6 +29,7 @@ const el = {
   iconSun:        $('icon-sun'),
   iconMoon:       $('icon-moon'),
   btnPin:         $('btn-pin'),
+  btnImport:      $('btn-import'),
   btnHide:        $('btn-hide'),
   sidebar:        $('sidebar'),
   sidebarResizer: $('sidebar-resizer'),
@@ -140,6 +141,22 @@ function setPinned(pinned, save = true) {
   if (save) api.saveConfig({ pinned });
 }
 function togglePin() { setPinned(!state.isPinned); }
+
+async function importReadingList() {
+  if (!state.currentFolder) {
+    showError('Open a folder before importing the Chrome Reading List.');
+    return;
+  }
+
+  const res = await api.importChromeReadingList(state.currentFolder);
+  if (!res.success) {
+    showError('Import failed: ' + res.error);
+    return;
+  }
+
+  await loadFolder(state.currentFolder);
+  await openFile(res.filePath);
+}
 
 // ─── Collapse to tab ──────────────────────────────────────────────────────────
 function collapseToTab() {
@@ -896,6 +913,7 @@ function bindEvents() {
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnTheme.addEventListener('click', toggleTheme);
   el.btnPin.addEventListener('click', togglePin);
+  el.btnImport.addEventListener('click', importReadingList);
   el.btnCollapse.addEventListener('click', collapseToTab);
   el.panelTabIcon.addEventListener('click', expandFromTab);
   el.btnExpand.addEventListener('click', expandFromTab);
