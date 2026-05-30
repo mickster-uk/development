@@ -11,6 +11,7 @@ const CFG = {
   MIN_WIDTH:      300,
   MAX_WIDTH:      900,
   SLIDE_DURATION: 220,   // ms
+  TAB_WIDTH:       40,   // collapsed-to-tab strip width
 };
 
 const MARKDOWN_EXT = new Set([
@@ -23,6 +24,7 @@ let mainWindow;
 let tray;
 let isPanelOpen       = true;
 let isAnimating       = false;
+let isTabMode         = false;  // collapsed to thin strip
 let configCache       = null;
 let activeDisplayId   = null;   // null = always use primary
 
@@ -47,6 +49,7 @@ async function createWindow() {
     transparent:     true,
     backgroundColor: '#00000000',
     hasShadow:       true,
+    icon:            path.join(__dirname, 'assets', 'icons', 'icon-512.png'),
     resizable:       false,   // custom left-edge resize handle
     movable:         false,   // stays at the right edge
     alwaysOnTop:     false,
@@ -221,6 +224,26 @@ ipcMain.handle('toggle-panel',  ()          => togglePanel());
 ipcMain.handle('hide-panel',    ()          => { if (isPanelOpen) slideOut(); });
 ipcMain.handle('quit-app',      ()          => app.quit());
 
+ipcMain.handle('collapse-to-tab', () => {
+  if (isTabMode) return;
+  isTabMode = true;
+  const wa = getWorkArea();
+  const [, h] = mainWindow.getSize();
+  mainWindow.setBounds({ x: wa.x + wa.width - CFG.TAB_WIDTH, y: wa.y, width: CFG.TAB_WIDTH, height: h });
+  return { success: true };
+});
+
+ipcMain.handle('expand-from-tab', () => {
+  if (!isTabMode) return;
+  isTabMode = false;
+  const wa  = getWorkArea();
+  const cfg = loadConfig();
+  const w   = Math.max(CFG.MIN_WIDTH, Math.min(CFG.MAX_WIDTH, cfg.panelWidth || CFG.PANEL_WIDTH));
+  const [, h] = mainWindow.getSize();
+  mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: h });
+  return { success: true };
+});
+
 ipcMain.handle('get-displays', () => {
   const primary = screen.getPrimaryDisplay();
   return screen.getAllDisplays().map((d, i) => ({
@@ -362,8 +385,12 @@ app.on('activate', () => {
 app.whenReady().then(() => {
   screen.on('display-metrics-changed', () => {
     if (!mainWindow || mainWindow.isDestroyed()) return;
-    const wa  = getWorkArea();
-    const [w] = mainWindow.getSize();
-    mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
+    const wa = getWorkArea();
+    if (isTabMode) {
+      mainWindow.setBounds({ x: wa.x + wa.width - CFG.TAB_WIDTH, y: wa.y, width: CFG.TAB_WIDTH, height: wa.height });
+    } else {
+      const [w] = mainWindow.getSize();
+      mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
+    }
   });
 });

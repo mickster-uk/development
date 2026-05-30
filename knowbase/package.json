@@ -5,7 +5,12 @@
   "main": "main.js",
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE= electron .",
-    "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron ."
+    "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
+    "build-icons": "node scripts/generate-icons.js",
+    "build": "electron-builder --publish never",
+    "build:mac": "electron-builder --mac --publish never",
+    "build:win": "electron-builder --win --publish never",
+    "build:linux": "electron-builder --linux --publish never"
   },
   "keywords": [
     "electron",
@@ -16,11 +21,46 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.3.0",
-    "playwright-core": "^1.60.0"
+    "electron-builder": "^26.8.1",
+    "playwright-core": "^1.60.0",
+    "sharp": "^0.34.5"
   },
   "dependencies": {
     "highlight.js": "^11.9.0",
     "marked": "^4.3.0",
     "mermaid": "^11.15.0"
+  },
+  "build": {
+    "appId": "com.knowbase.app",
+    "productName": "Knowbase",
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
   }
 }

@@ -127,6 +127,14 @@ html, body {
   -webkit-app-region: drag;
   min-width: 0;
   padding: 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tb-icon {
+  flex-shrink: 0;
+  color: var(--text-accent);
 }
 
 .tb-actions {
@@ -664,6 +672,68 @@ html, body {
   flex: 1;
 }
 .status-meta { flex-shrink: 0; margin-left: 12px; }
+
+/* ── Panel tab (strip visible when collapsed) ─────────────────── */
+.panel-tab {
+  display: none;
+  position: absolute;
+  inset: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  background: var(--bg);
+  border-radius: var(--radius) 0 0 var(--radius);
+  z-index: 300;
+}
+
+.app-shell.tab-mode .panel-tab {
+  display: flex;
+}
+
+/* Hide everything except the tab strip when in tab mode */
+.app-shell.tab-mode > *:not(.panel-tab) {
+  display: none !important;
+}
+
+.panel-tab-icon-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--anim), color var(--anim);
+  flex-shrink: 0;
+}
+.panel-tab-icon-btn svg { width: 20px; height: 20px; }
+.panel-tab-icon-btn:hover { background: var(--bg-hover); }
+.panel-tab-icon-btn:active { transform: scale(0.92); }
+
+.panel-tab-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--anim), color var(--anim);
+  flex-shrink: 0;
+}
+.panel-tab-btn svg { width: 18px; height: 18px; }
+.panel-tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+.panel-tab-btn:active { transform: scale(0.92); }
+
+.brain-icon { color: var(--text-accent); transition: color var(--anim); }
+.panel-tab-btn:hover .brain-icon { color: var(--text-accent); filter: drop-shadow(0 0 6px var(--text-accent)); }
 
 /* ── Utility ───────────────────────────────────────────────────── */
 .hidden { display: none !important; }

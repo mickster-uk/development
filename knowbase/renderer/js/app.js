@@ -54,6 +54,10 @@ const el = {
   edgeResize:     $('edge-resize'),
   tbVersion:      $('tb-version'),
   btnDisplay:     $('btn-display'),
+  btnCollapse:    $('btn-collapse'),
+  panelTab:       $('panel-tab'),
+  panelTabIcon:   document.querySelector('.panel-tab-icon-btn'),
+  btnExpand:      $('btn-expand'),
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
@@ -136,6 +140,17 @@ function setPinned(pinned, save = true) {
   if (save) api.saveConfig({ pinned });
 }
 function togglePin() { setPinned(!state.isPinned); }
+
+// ─── Collapse to tab ──────────────────────────────────────────────────────────
+function collapseToTab() {
+  el.shell.classList.add('tab-mode');
+  api.collapseToTab();
+}
+
+function expandFromTab() {
+  el.shell.classList.remove('tab-mode');
+  api.expandFromTab();
+}
 
 // ─── Open folder ─────────────────────────────────────────────────────────────
 async function openFolderDialog() {
@@ -866,6 +881,9 @@ function bindEvents() {
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnTheme.addEventListener('click', toggleTheme);
   el.btnPin.addEventListener('click', togglePin);
+  el.btnCollapse.addEventListener('click', collapseToTab);
+  el.panelTabIcon.addEventListener('click', expandFromTab);
+  el.btnExpand.addEventListener('click', expandFromTab);
   el.btnHide.addEventListener('click', () => api.quitApp());
   el.btnOpenFolder.addEventListener('click', openFolderDialog);
   el.btnNewFile.addEventListener('click', newItemAtRoot);

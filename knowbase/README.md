@@ -1,4 +1,4 @@
-# Markdown Reader
+# Knowbase
 
 A polished Electron side-panel app for reading Markdown files. Slides in from the right edge of your screen and mirrors your folder's directory structure as a navigable tree.
 

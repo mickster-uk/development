@@ -140,6 +140,10 @@ contextBridge.exposeInMainWorld('api', {
   // Markdown parsing (runs in Node context)
   parseMarkdown: (md) => marked.parse(md),
 
+  // Panel collapse / expand
+  collapseToTab:  () => ipcRenderer.invoke('collapse-to-tab'),
+  expandFromTab:  () => ipcRenderer.invoke('expand-from-tab'),
+
   // Events from main
   onRestoreFolder: (cb) => ipcRenderer.on('restore-folder', (_, p) => cb(p)),
 });
