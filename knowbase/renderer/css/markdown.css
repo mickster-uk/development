@@ -73,7 +73,8 @@
 .markdown-body del    { text-decoration: line-through; color: var(--text-muted); }
 
 /* ── Inline code ─────────────────────────────────────────────────────────── */
-.markdown-body :not(pre) > code {
+.markdown-body :not(pre) > code,
+.markdown-body .inline-code-wrap {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.875em;
   padding: 0.15em 0.4em;
@@ -82,7 +83,38 @@
   border-radius: 4px;
   color: var(--text);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
 }
+
+.markdown-body .inline-copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.markdown-body .inline-code-wrap:hover .inline-copy-btn {
+  opacity: 1;
+}
+
+.markdown-body .inline-copy-btn:hover {
+  color: var(--text);
+}
+
+.markdown-body .inline-copy-btn.copied {
+  color: #22c55e;
+}
+
 
 /* ── Code blocks ─────────────────────────────────────────────────────────── */
 .markdown-body .code-block-wrap {

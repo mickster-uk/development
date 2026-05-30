@@ -59,6 +59,14 @@ marked.use({
         return `<li class="task-item"><input type="checkbox" disabled${checked ? ' checked' : ''}> ${text}</li>`;
       }
       return `<li>${text}</li>`;
+    },
+
+    // Inline code (backticks) with copy button
+    codespan(code) {
+      return `<code class="inline-code-wrap">` +
+             `<button class="inline-copy-btn" data-code="${encodeURIComponent(code)}" title="Copy" aria-label="Copy code">` +
+             `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>` +
+             `</button><span>${escapeHtml(code)}</span></code>`;
     }
   }
 });

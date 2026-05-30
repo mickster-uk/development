@@ -415,7 +415,7 @@ function renderMarkdown(html) {
 
   renderMermaidDiagrams();
 
-  // Copy buttons
+  // Copy buttons for code blocks
   el.mdBody.querySelectorAll('.copy-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const code = decodeURIComponent(btn.dataset.code || '');
@@ -424,6 +424,21 @@ function renderMarkdown(html) {
         btn.classList.add('copied');
         btn.title = 'Copied!';
         setTimeout(() => { btn.classList.remove('copied'); btn.title = 'Copy'; }, 1800);
+      } catch (_) {}
+    });
+  });
+
+  // Copy buttons for inline code
+  el.mdBody.querySelectorAll('.inline-copy-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const code = decodeURIComponent(btn.dataset.code || '');
+      try {
+        await navigator.clipboard.writeText(code);
+        btn.classList.add('copied');
+        const originalTitle = btn.title;
+        btn.title = 'Copied!';
+        setTimeout(() => { btn.classList.remove('copied'); btn.title = originalTitle; }, 1800);
       } catch (_) {}
     });
   });
