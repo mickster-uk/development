@@ -981,7 +981,9 @@ function bindEvents() {
       lines.push(`| [${title}](${item.url}) | ${date} |`);
     }
     const content = lines.join('\n') + '\n';
-    const filePath = state.currentFolder + '/Reading List.md';
+    const subFolder = state.currentFolder + '/Reading List';
+    await api.createFolder(subFolder);
+    const filePath = subFolder + '/Reading List.md';
     const res = await api.writeFile(filePath, content);
     if (!res.success) { showError('Could not save Reading List: ' + res.error); return; }
     await loadFolder(state.currentFolder);
