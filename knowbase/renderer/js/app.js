@@ -972,7 +972,10 @@ function bindEvents() {
     const lines = ['# Reading List', '', '| Title | Date Added |', '|-------|------------|'];
     for (const item of items) {
       const ts = item.creationTime;
-      const d = new Date(ts > 1e11 ? ts : ts * 1000);
+      const d = ts > 1e16 ? new Date(ts / 1e6)   // nanoseconds
+              : ts > 1e13 ? new Date(ts / 1e3)    // microseconds
+              : ts > 1e10 ? new Date(ts)           // milliseconds
+              :             new Date(ts * 1e3);    // seconds
       const date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
       const title = item.title.replace(/\|/g, '\\|');
       lines.push(`| [${title}](${item.url}) | ${date} |`);
