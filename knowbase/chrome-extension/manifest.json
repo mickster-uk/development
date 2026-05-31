@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Knowbase Reading List",
+  "version": "1.0",
+  "description": "Export your Chrome Reading List to Knowbase",
+  "permissions": ["readingList"],
+  "host_permissions": ["http://localhost:57420/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Export to Knowbase"
+  }
+}

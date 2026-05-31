@@ -220,6 +220,11 @@
   padding: 7px 12px;
   border: 1px solid var(--border-solid);
   text-align: left;
+  word-break: break-word;
+}
+.markdown-body td:last-child,
+.markdown-body th:last-child {
+  white-space: nowrap;
 }
 .markdown-body th {
   background: var(--bg-code);

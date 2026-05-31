@@ -4,6 +4,9 @@ const {
 } = require('electron');
 const path = require('path');
 const fs   = require('fs');
+const http = require('http');
+
+const READING_LIST_PORT = 57420;
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CFG = {
@@ -18,6 +21,7 @@ const MARKDOWN_EXT = new Set([
   '.md', '.markdown', '.mdown', '.mkd', '.mkdn',
   '.mdwn', '.mdtxt', '.mdtext', '.txt'
 ]);
+
 
 const CHROME_BOOKMARKS_CANDIDATES = [
   path.join(app.getPath('home'), 'Library', 'Application Support', 'Google', 'Chrome', 'Default', 'Bookmarks'),
@@ -44,42 +48,25 @@ function collectBookmarkLinks(node, links) {
   }
 }
 
-function searchReadingListFolders(node, matches) {
-  if (!node || typeof node !== 'object') return;
-  if (node.type === 'folder' && String(node.name || '').toLowerCase() === 'reading list') {
-    matches.push(node);
-  }
-  if (Array.isArray(node.children)) {
-    node.children.forEach(child => searchReadingListFolders(child, matches));
-  }
-}
-
-function extractReadingListLinks(bookmarks) {
-  const roots = bookmarks.roots || {};
-  const folders = [];
-  ['reading_list', 'other', 'bookmark_bar', 'synced'].forEach(rootName => {
-    const root = roots[rootName];
-    if (root) searchReadingListFolders(root, folders);
+function buildFolderList(node, displayPath, map) {
+  if (!Array.isArray(node.children)) return;
+  node.children.forEach(child => {
+    if (child.type !== 'folder' && !Array.isArray(child.children)) return;
+    const childPath = displayPath ? `${displayPath} › ${child.name}` : child.name;
+    map.set(String(map.size), { node: child, name: child.name, displayPath: childPath });
+    buildFolderList(child, childPath, map);
   });
-  if (roots.reading_list && typeof roots.reading_list === 'object') {
-    folders.push(roots.reading_list);
-  }
-  const links = [];
-  if (folders.length > 0) {
-    folders.forEach(folder => collectBookmarkLinks(folder, links));
-    return links;
-  }
-  Object.values(roots).forEach(root => collectBookmarkLinks(root, links));
-  return links;
 }
 
-function buildReadingListMarkdown(links) {
-  const lines = ['# Reading List', ''];
+function buildBookmarkMarkdown(links, title) {
+  const lines = [`# ${title}`, ''];
   for (const item of links) {
     lines.push(`- [${item.title}](${item.url})`);
   }
   return lines.join('\n') + '\n';
 }
+
+let bookmarkFolderCache = null;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWindow;
@@ -230,22 +217,49 @@ ipcMain.handle('open-folder-dialog', async () => {
   return { success: false, canceled: true };
 });
 
-ipcMain.handle('import-chrome-reading-list', async (_, folderPath) => {
+ipcMain.handle('get-bookmarks-folders', () => {
   const bookmarksFile = findChromeBookmarksFile();
   if (!bookmarksFile) {
-    return { success: false, error: 'Could not find Chrome bookmarks file. Open Chrome or install a supported browser first.' };
+    return { success: false, error: 'Could not find a Chrome/Brave/Edge bookmarks file.' };
   }
-
   try {
-    const raw = fs.readFileSync(bookmarksFile, 'utf-8');
-    const bookmarks = JSON.parse(raw);
-    const links = extractReadingListLinks(bookmarks);
-    if (!links.length) {
-      return { success: false, error: 'No Reading List entries were found in Chrome bookmarks.' };
-    }
+    const bookmarks = JSON.parse(fs.readFileSync(bookmarksFile, 'utf-8'));
+    const roots = bookmarks.roots || {};
+    const ROOT_LABELS = {
+      bookmark_bar: 'Bookmarks bar',
+      other:        'Other bookmarks',
+      synced:       'Mobile bookmarks',
+      reading_list: 'Reading list',
+    };
 
-    const outputFile = path.join(folderPath, 'Reading List.md');
-    fs.writeFileSync(outputFile, buildReadingListMarkdown(links), 'utf-8');
+    bookmarkFolderCache = new Map();
+    Object.entries(roots).forEach(([key, root]) => {
+      const label = ROOT_LABELS[key] || root.name || key;
+      bookmarkFolderCache.set(String(bookmarkFolderCache.size), { node: root, name: label, displayPath: label });
+      buildFolderList(root, label, bookmarkFolderCache);
+    });
+
+    const folders = Array.from(bookmarkFolderCache.entries())
+      .map(([id, { name, displayPath }]) => ({ id, name, displayPath }));
+    return { success: true, folders };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('import-bookmarks-folder', (_, outputFolder, folderId) => {
+  if (!bookmarkFolderCache || !bookmarkFolderCache.has(folderId)) {
+    return { success: false, error: 'Folder not found. Try importing again.' };
+  }
+  const { node, name } = bookmarkFolderCache.get(folderId);
+  const links = [];
+  collectBookmarkLinks(node, links);
+  if (!links.length) {
+    return { success: false, error: `No bookmarks found in "${name}".` };
+  }
+  try {
+    const outputFile = path.join(outputFolder, `${name}.md`);
+    fs.writeFileSync(outputFile, buildBookmarkMarkdown(links, name), 'utf-8');
     return { success: true, filePath: outputFile, count: links.length };
   } catch (e) {
     return { success: false, error: e.message };
@@ -436,6 +450,32 @@ app.whenReady().then(async () => {
     const w  = Math.max(CFG.MIN_WIDTH, Math.min(CFG.MAX_WIDTH, cfg.panelWidth));
     mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
   }
+
+  // Local HTTP server – receives reading list from companion Chrome extension
+  try {
+    const server = http.createServer((req, res) => {
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+      if (req.method === 'POST' && req.url === '/reading-list') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+          try {
+            const { items } = JSON.parse(body);
+            if (mainWindow) mainWindow.webContents.send('chrome-reading-list', items);
+            res.writeHead(200); res.end(JSON.stringify({ success: true }));
+          } catch (e) {
+            res.writeHead(400); res.end(JSON.stringify({ error: e.message }));
+          }
+        });
+      } else {
+        res.writeHead(404); res.end();
+      }
+    });
+    server.listen(READING_LIST_PORT, '127.0.0.1');
+  } catch (_) { /* server not critical */ }
 
   // Global toggle shortcut
   globalShortcut.register('CommandOrControl+Shift+M', togglePanel);

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      width: 220px;
+      padding: 16px;
+      font-family: -apple-system, sans-serif;
+      font-size: 13px;
+      color: #1a1a1a;
+    }
+    h3 { margin: 0 0 12px; font-size: 14px; }
+    button {
+      width: 100%;
+      padding: 8px 12px;
+      background: #1a73e8;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    button:hover { background: #1557b0; }
+    button:disabled { background: #aaa; cursor: default; }
+    #status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: #555;
+      min-height: 16px;
+    }
+    #status.error { color: #c0392b; }
+    #status.ok    { color: #27ae60; }
+  </style>
+</head>
+<body>
+  <h3>Knowbase</h3>
+  <button id="btn">Export Reading List</button>
+  <div id="status"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

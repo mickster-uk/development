@@ -142,20 +142,54 @@ function setPinned(pinned, save = true) {
 }
 function togglePin() { setPinned(!state.isPinned); }
 
-async function importReadingList() {
+async function showBookmarkFolderPicker(anchorEl) {
+  closeBookmarkPicker();
+
   if (!state.currentFolder) {
-    showError('Open a folder before importing the Chrome Reading List.');
+    showError('Open a folder before importing bookmarks.');
     return;
   }
 
-  const res = await api.importChromeReadingList(state.currentFolder);
-  if (!res.success) {
-    showError('Import failed: ' + res.error);
+  const result = await api.getBookmarksFolders();
+  if (!result.success) {
+    showError('Could not read bookmarks: ' + result.error);
     return;
   }
 
-  await loadFolder(state.currentFolder);
-  await openFile(res.filePath);
+  const menu = document.createElement('div');
+  menu.className = 'bookmark-picker';
+  document.body.appendChild(menu);
+
+  for (const folder of result.folders) {
+    const item = document.createElement('button');
+    item.className = 'bookmark-picker-item';
+    item.textContent = folder.displayPath;
+    item.title = folder.displayPath;
+    item.addEventListener('mousedown', async e => {
+      e.preventDefault();
+      closeBookmarkPicker();
+      const res = await api.importBookmarksFolder(state.currentFolder, folder.id);
+      if (!res.success) { showError('Import failed: ' + res.error); return; }
+      await loadFolder(state.currentFolder);
+      await openFile(res.filePath);
+    });
+    menu.appendChild(item);
+  }
+
+  const rect = anchorEl.getBoundingClientRect();
+  menu.style.top   = (rect.bottom + 4) + 'px';
+  menu.style.right = (window.innerWidth - rect.right) + 'px';
+
+  const onOutside = e => { if (!menu.contains(e.target)) closeBookmarkPicker(); };
+  setTimeout(() => document.addEventListener('click', onOutside, true), 10);
+  menu._onOutside = onOutside;
+}
+
+function closeBookmarkPicker() {
+  const m = document.querySelector('.bookmark-picker');
+  if (!m) return;
+  if (m._onOutside) document.removeEventListener('click', m._onOutside, true);
+  m.remove();
 }
 
 // ─── Collapse to tab ──────────────────────────────────────────────────────────
@@ -913,7 +947,7 @@ function bindEvents() {
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnTheme.addEventListener('click', toggleTheme);
   el.btnPin.addEventListener('click', togglePin);
-  el.btnImport.addEventListener('click', importReadingList);
+  el.btnImport.addEventListener('click', () => showBookmarkFolderPicker(el.btnImport));
   el.btnCollapse.addEventListener('click', collapseToTab);
   el.panelTabIcon.addEventListener('click', expandFromTab);
   el.btnExpand.addEventListener('click', expandFromTab);
@@ -929,6 +963,27 @@ function bindEvents() {
   setupSidebarResize();
   setupEdgePanelResize();
   setupKeyboard();
+
+  api.onChromeReadingList(async items => {
+    if (!state.currentFolder) {
+      showError('Open a folder in Knowbase first, then export from the Chrome extension.');
+      return;
+    }
+    const lines = ['# Reading List', '', '| Title | Date Added |', '|-------|------------|'];
+    for (const item of items) {
+      const ts = item.creationTime;
+      const d = new Date(ts > 1e11 ? ts : ts * 1000);
+      const date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+      const title = item.title.replace(/\|/g, '\\|');
+      lines.push(`| [${title}](${item.url}) | ${date} |`);
+    }
+    const content = lines.join('\n') + '\n';
+    const filePath = state.currentFolder + '/Reading List.md';
+    const res = await api.writeFile(filePath, content);
+    if (!res.success) { showError('Could not save Reading List: ' + res.error); return; }
+    await loadFolder(state.currentFolder);
+    await openFile(filePath);
+  });
 
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
     api.getConfig().then(cfg => { if (cfg.dark === undefined) applyTheme(e.matches, false); });

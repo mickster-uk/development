@@ -232,6 +232,39 @@ html, body {
   transform: translateY(-50%);
 }
 
+/* ── Bookmark folder picker ─────────────────────────────── */
+.bookmark-picker {
+  position: fixed;
+  z-index: 9999;
+  background: var(--bg-content);
+  border: 1px solid var(--border-solid);
+  border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.18), 0 1px 4px rgba(0,0,0,0.1);
+  overflow-y: auto;
+  max-height: 320px;
+  min-width: 220px;
+  max-width: 360px;
+  padding: 4px;
+}
+.bookmark-picker-item {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background var(--anim);
+}
+.bookmark-picker-item:hover { background: var(--bg-hover); }
+
 /* ── Mermaid zoom toolbar ────────────────────────────────── */
 .mermaid-toolbar {
   display: flex;

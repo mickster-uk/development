@@ -117,7 +117,9 @@ contextBridge.exposeInMainWorld('api', {
   readDirectory:    (p)          => ipcRenderer.invoke('read-directory', p),
   readFile:         (p)          => ipcRenderer.invoke('read-file', p),
   openFolderDialog: ()           => ipcRenderer.invoke('open-folder-dialog'),
-  importChromeReadingList: (folderPath) => ipcRenderer.invoke('import-chrome-reading-list', folderPath),
+  getBookmarksFolders:   ()                       => ipcRenderer.invoke('get-bookmarks-folders'),
+  importBookmarksFolder: (outputFolder, folderId) => ipcRenderer.invoke('import-bookmarks-folder', outputFolder, folderId),
+  onChromeReadingList:   (cb) => ipcRenderer.on('chrome-reading-list', (_, items) => cb(items)),
 
   // File system – write / create / manage
   writeFile:    (filePath, content)  => ipcRenderer.invoke('write-file', filePath, content),
