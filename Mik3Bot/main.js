@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, shell, dialog } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -87,7 +87,8 @@ app.whenReady().then(() => {
   createWindow();
 
   const config = loadConfig();
-  ragService = new RAGService(KNOWLEDGE_PATH, config.endpoint || DEFAULTS.endpoint);
+  const knowledgePath = config.knowbasePath || KNOWLEDGE_PATH;
+  ragService = new RAGService(knowledgePath, config.endpoint || DEFAULTS.endpoint);
   ragService.index().catch(e => console.error('RAG initial index failed:', e.message));
 
   // Cmd/Ctrl+Shift+Space toggles the window
@@ -114,7 +115,18 @@ ipcMain.handle('get-config', () => {
 ipcMain.handle('save-config', (event, data) => {
   saveConfig({ ...loadConfig(), ...data });
   if (data.endpoint && ragService) ragService.endpoint = data.endpoint;
+  if ('knowbasePath' in data && ragService) {
+    ragService.knowledgePath = data.knowbasePath || KNOWLEDGE_PATH;
+    ragService.cachePath = require('path').join(ragService.knowledgePath, '.rag-cache.json');
+    ragService.indexed = false;
+    ragService.chunks = [];
+  }
   return true;
+});
+
+ipcMain.handle('select-knowbase-folder', async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({ properties: ['openDirectory'] });
+  return canceled ? null : filePaths[0];
 });
 
 ipcMain.handle('rag-status', () => ragService ? ragService.getStatus() : { indexed: false, chunkCount: 0, fileCount: 0, lastError: null });

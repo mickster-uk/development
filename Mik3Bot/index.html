@@ -431,6 +431,12 @@
             <span class="rag-path" id="ragPath">—</span>
             <button class="rag-link" onclick="openKnowledgeFolder()">open ↗</button>
           </div>
+          <div class="rag-row" style="margin-top:4px;">
+            <span class="settings-label">knowbase</span>
+            <span class="rag-path" id="knowbasePath" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">not set</span>
+            <button class="rag-link" id="knowbaseClearBtn" onclick="clearKnowledgePath()" style="display:none;">clear</button>
+            <button class="rag-link" onclick="browseKnowledgePath()">browse ↗</button>
+          </div>
           <div class="rag-row" style="margin-top:6px;">
             <span class="settings-label">history</span>
             <span class="rag-path">history.json</span>
@@ -477,11 +483,40 @@
     // ── Load config from main process ─────────────────────────────────────
     async function loadConfig() {
       const cfg = await window.electronAPI.getConfig();
-      endpointInput.value       = cfg.endpoint       || '';
-      modelInput.value          = cfg.model          || '';
-      apiKeyInput.value         = cfg.apiKey         || '';
-      markdownToggle.checked    = cfg.renderMarkdown === true;
+      endpointInput.value        = cfg.endpoint       || '';
+      modelInput.value           = cfg.model          || '';
+      apiKeyInput.value          = cfg.apiKey         || '';
+      markdownToggle.checked     = cfg.renderMarkdown === true;
       storeHistoryToggle.checked = cfg.storeHistory !== false;
+      setKnowledgePathUI(cfg.knowbasePath || null);
+    }
+
+    function setKnowledgePathUI(p) {
+      const el = document.getElementById('knowbasePath');
+      const clearBtn = document.getElementById('knowbaseClearBtn');
+      if (p) {
+        el.textContent = p.split('/').pop() || p;
+        el.title = p;
+        clearBtn.style.display = '';
+      } else {
+        el.textContent = 'not set';
+        el.title = '';
+        clearBtn.style.display = 'none';
+      }
+    }
+
+    async function browseKnowledgePath() {
+      const chosen = await window.electronAPI.selectKnowledgePath();
+      if (!chosen) return;
+      setKnowledgePathUI(chosen);
+      await window.electronAPI.saveConfig({ knowbasePath: chosen });
+      reindex();
+    }
+
+    async function clearKnowledgePath() {
+      setKnowledgePathUI(null);
+      await window.electronAPI.saveConfig({ knowbasePath: '' });
+      reindex();
     }
 
     // ── Persist config ────────────────────────────────────────────────────
