@@ -60,8 +60,9 @@ class RAGService {
             newChunks.push({ text: chunk.text, source: chunk.source, embedding });
             newCache[hash] = embedding;
           } catch (e) {
-            console.error(`RAG: failed to embed chunk from ${source}:`, e.message);
-            this.lastError = `Embedding failed — is "${EMBEDDING_MODEL}" pulled in Ollama?`;
+            const detail = e.response?.data?.error || e.message;
+            console.error(`RAG: failed to embed chunk from ${source}:`, detail);
+            this.lastError = `Embedding failed: ${detail}`;
           }
         }
       }
@@ -176,15 +177,26 @@ class RAGService {
   }
 
   async _embed(text) {
+    try {
+      // Try new Ollama API (/api/embed, returns embeddings[0])
+      const response = await axios.post(
+        `${this.endpoint}/api/embed`,
+        { model: EMBEDDING_MODEL, input: text },
+        { timeout: 30000 }
+      );
+      const vec = response.data?.embeddings?.[0];
+      if (vec) return vec;
+    } catch (_) {}
+
+    // Fall back to legacy API (/api/embeddings, returns embedding)
     const response = await axios.post(
       `${this.endpoint}/api/embeddings`,
       { model: EMBEDDING_MODEL, prompt: text },
       { timeout: 30000 }
     );
-    if (!response.data || !response.data.embedding) {
-      throw new Error('No embedding returned from Ollama');
-    }
-    return response.data.embedding;
+    const vec = response.data?.embedding;
+    if (!vec) throw new Error('No embedding returned — is nomic-embed-text pulled in Ollama?');
+    return vec;
   }
 
   _cosine(a, b) {

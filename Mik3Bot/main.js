@@ -117,7 +117,7 @@ ipcMain.handle('save-config', (event, data) => {
   if (data.endpoint && ragService) ragService.endpoint = data.endpoint;
   if ('knowbasePath' in data && ragService) {
     ragService.knowledgePath = data.knowbasePath || KNOWLEDGE_PATH;
-    ragService.cachePath = require('path').join(ragService.knowledgePath, '.rag-cache.json');
+    ragService.cachePath = path.join(ragService.knowledgePath, '.rag-cache.json');
     ragService.indexed = false;
     ragService.chunks = [];
   }
