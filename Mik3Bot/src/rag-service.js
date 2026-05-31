@@ -132,9 +132,7 @@ class RAGService {
 
     for (const section of sections) {
       if (section.length <= CHUNK_MAX) {
-        if (section.trim().length >= MIN_CHUNK_LEN) {
-          chunks.push({ text: section.trim(), source });
-        }
+        if (section.trim().length >= MIN_CHUNK_LEN) chunks.push({ text: section.trim(), source });
         continue;
       }
       const paragraphs = section.split(/\n\n+/).filter(p => p.trim().length > 0);
@@ -150,7 +148,23 @@ class RAGService {
       if (current.trim().length >= MIN_CHUNK_LEN) chunks.push({ text: current.trim(), source });
     }
 
-    return chunks;
+    // Second pass: split still-oversized chunks line by line (handles big tables, long lists)
+    const result = [];
+    for (const chunk of chunks) {
+      if (chunk.text.length <= CHUNK_MAX) { result.push(chunk); continue; }
+      let group = '';
+      for (const line of chunk.text.split('\n')) {
+        if (group && (group + '\n' + line).length > CHUNK_MAX) {
+          if (group.trim().length >= MIN_CHUNK_LEN) result.push({ text: group.trim(), source: chunk.source });
+          group = line;
+        } else {
+          group = group ? group + '\n' + line : line;
+        }
+      }
+      if (group.trim().length >= MIN_CHUNK_LEN) result.push({ text: group.trim(), source: chunk.source });
+    }
+    return result;
+  }
   }
 
   _chunkJSON(text, source) {
@@ -177,11 +191,12 @@ class RAGService {
   }
 
   async _embed(text) {
+    const safeText = text.length > CHUNK_MAX * 2 ? text.slice(0, CHUNK_MAX * 2) : text;
     try {
       // Try new Ollama API (/api/embed, returns embeddings[0])
       const response = await axios.post(
         `${this.endpoint}/api/embed`,
-        { model: EMBEDDING_MODEL, input: text },
+        { model: EMBEDDING_MODEL, input: safeText },
         { timeout: 30000 }
       );
       const vec = response.data?.embeddings?.[0];
@@ -191,7 +206,7 @@ class RAGService {
     // Fall back to legacy API (/api/embeddings, returns embedding)
     const response = await axios.post(
       `${this.endpoint}/api/embeddings`,
-      { model: EMBEDDING_MODEL, prompt: text },
+      { model: EMBEDDING_MODEL, prompt: safeText },
       { timeout: 30000 }
     );
     const vec = response.data?.embedding;
