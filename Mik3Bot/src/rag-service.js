@@ -165,7 +165,6 @@ class RAGService {
     }
     return result;
   }
-  }
 
   _chunkJSON(text, source) {
     try {
