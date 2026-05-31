@@ -129,6 +129,10 @@
       color: var(--text-muted); padding: 1px 5px;
       border: 1px solid var(--border); border-radius: 4px; opacity: 0.6;
     }
+    .app-version {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); margin-left: auto; opacity: 0.5;
+    }
 
     .settings-area {
       overflow: hidden; max-height: 0;
@@ -383,6 +387,7 @@
       <div class="settings-bar">
         <button class="settings-toggle" onclick="toggleSettings()">⚙ config</button>
         <span class="kbd-hint">⌘⇧Space to toggle</span>
+        <span class="app-version" id="appVersion"></span>
       </div>
 
       <!-- Settings area -->
@@ -654,6 +659,10 @@
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
+    window.electronAPI.getVersion().then(v => {
+      document.getElementById('appVersion').textContent = 'v' + v;
+    });
+
     loadConfig().then(() => {
       promptInput.focus();
       updateWindowHeight();

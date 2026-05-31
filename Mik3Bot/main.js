@@ -231,3 +231,4 @@ ipcMain.on('move-window', (event, { deltaX, deltaY }) => {
 
 ipcMain.on('close-app', () => app.quit());
 ipcMain.on('hide-app', () => mainWindow.hide());
+ipcMain.handle('get-version', () => app.getVersion());

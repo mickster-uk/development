@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideApp: () => ipcRenderer.send('hide-app'),
   ragStatus: () => ipcRenderer.invoke('rag-status'),
   ragIndex: () => ipcRenderer.invoke('rag-index'),
-  openKnowledgeFolder: () => ipcRenderer.invoke('open-knowledge-folder')
-  ,showHistoryInFinder: () => ipcRenderer.invoke('show-history-in-finder')
+  openKnowledgeFolder: () => ipcRenderer.invoke('open-knowledge-folder'),
+  showHistoryInFinder: () => ipcRenderer.invoke('show-history-in-finder'),
+  getVersion:          () => ipcRenderer.invoke('get-version'),
 });

@@ -5,6 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "prebuild": "npm version minor --no-git-tag-version",
     "build": "electron-builder"
   },
   "dependencies": {
