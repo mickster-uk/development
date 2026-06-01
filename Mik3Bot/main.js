@@ -137,6 +137,25 @@ ipcMain.handle('rag-index', async () => {
 });
 
 ipcMain.handle('open-knowledge-folder', () => shell.openPath(KNOWLEDGE_PATH));
+
+ipcMain.handle('save-starred', async (_, { prompt, response }) => {
+  try {
+    const cfg = loadConfig();
+    const base = cfg.knowbasePath || KNOWLEDGE_PATH;
+    const dir  = path.join(base, 'Starred');
+    fs.mkdirSync(dir, { recursive: true });
+
+    const slug = prompt.trim().slice(0, 50).replace(/[^\w\s-]/g, '').replace(/\s+/g, ' ').trim();
+    const date = new Date().toISOString().slice(0, 10);
+    const file = path.join(dir, `${date} ${slug}.md`);
+
+    const content = `# ${prompt.trim()}\n\n**Prompt:** ${prompt.trim()}\n\n**Response:**\n\n${response.trim()}\n\n---\n*Saved with Mik3Bot · ${new Date().toLocaleString()}*\n`;
+    fs.writeFileSync(file, content, 'utf8');
+    return { success: true, file };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+});
 ipcMain.handle('show-history-in-finder', () => shell.showItemInFolder(getHistoryPath()));
 
 // ── API call ──────────────────────────────────────────────────────────────

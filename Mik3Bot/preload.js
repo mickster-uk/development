@@ -14,4 +14,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showHistoryInFinder: () => ipcRenderer.invoke('show-history-in-finder'),
   getVersion:            () => ipcRenderer.invoke('get-version'),
   selectKnowledgePath:   () => ipcRenderer.invoke('select-knowbase-folder'),
+  saveStarred:           (data) => ipcRenderer.invoke('save-starred', data),
 });

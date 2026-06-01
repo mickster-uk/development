@@ -320,6 +320,13 @@
       color: var(--text-muted); cursor: pointer; transition: all 0.15s;
     }
     .copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .star-btn {
+      background: none; border: none; font-size: 14px; line-height: 1;
+      cursor: pointer; color: var(--text-muted); padding: 0 2px;
+      transition: color 0.15s, transform 0.1s;
+    }
+    .star-btn:hover  { color: #f5c518; transform: scale(1.2); }
+    .star-btn.saved  { color: #f5c518; }
 
     .rag-section {
       padding: 6px 12px 10px;
@@ -474,6 +481,7 @@
 
     let settingsOpen = false;
     let lastResponseText = '';
+    let lastPromptText   = '';
 
     // Configure marked for safe rendering
     if (typeof marked !== 'undefined') {
@@ -628,6 +636,7 @@
         const response = await window.electronAPI.callLlama({ endpoint, apiKey, model, prompt });
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
         lastResponseText = response;
+        lastPromptText   = prompt;
         showResponse(response, model, elapsed);
         promptInput.value = '';
       } catch (err) {
@@ -663,10 +672,24 @@
           <div style="display:flex;gap:8px;align-items:center;">
             <span>${elapsed}s</span>
             <button class="copy-btn" onclick="copyResponse()">copy</button>
+            <button class="star-btn" id="starBtn" onclick="starResponse()" title="Save to Knowbase">☆</button>
           </div>
         </div>`;
       responsePanel.classList.add('open');
       updateWindowHeight();
+    }
+
+    async function starResponse() {
+      const btn = document.getElementById('starBtn');
+      if (!btn || btn.classList.contains('saved')) return;
+      const res = await window.electronAPI.saveStarred({ prompt: lastPromptText, response: lastResponseText });
+      if (res.success) {
+        btn.textContent = '★';
+        btn.classList.add('saved');
+        btn.title = 'Saved!';
+      } else {
+        btn.title = res.error;
+      }
     }
 
     function showError(message) {
