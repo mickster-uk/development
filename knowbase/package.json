@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -47,6 +47,7 @@
       "buildResources": "assets"
     },
     "mac": {
+      "icon": "assets/icon.icns",
       "target": [
         "dmg",
         "zip"
