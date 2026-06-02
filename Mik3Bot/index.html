@@ -370,7 +370,7 @@
       <!-- Drag bar -->
       <div class="drag-bar">
         <div class="brand">
-          <img class="brand-icon" src="build/icon.png" draggable="false">
+          <img class="brand-icon" id="brandIcon" draggable="false">
           <span class="brand-name">Mik3Bot</span>
         </div>
         <div class="controls">
@@ -719,6 +719,10 @@
     // ── Init ──────────────────────────────────────────────────────────────
     window.electronAPI.getVersion().then(v => {
       document.getElementById('appVersion').textContent = 'v' + v;
+    });
+
+    window.electronAPI.getIconDataUrl().then(url => {
+      document.getElementById('brandIcon').src = url;
     });
 
     loadConfig().then(() => {

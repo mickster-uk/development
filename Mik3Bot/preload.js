@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openKnowledgeFolder: () => ipcRenderer.invoke('open-knowledge-folder'),
   showHistoryInFinder: () => ipcRenderer.invoke('show-history-in-finder'),
   getVersion:            () => ipcRenderer.invoke('get-version'),
+  getIconDataUrl:        () => ipcRenderer.invoke('get-icon-data-url'),
   selectKnowledgePath:   () => ipcRenderer.invoke('select-knowbase-folder'),
   saveStarred:           (data) => ipcRenderer.invoke('save-starred', data),
 });

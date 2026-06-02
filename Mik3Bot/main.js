@@ -57,21 +57,26 @@ const DEFAULTS = {
   storeHistory: true
 };
 
+const PANEL_WIDTH = 520;
 let mainWindow;
 
+function getWorkArea() {
+  return screen.getPrimaryDisplay().workArea;
+}
+
 function createWindow() {
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const wa = getWorkArea();
 
   mainWindow = new BrowserWindow({
-    width: 520,
+    width:  PANEL_WIDTH,
     height: 80,
-    x: Math.floor((width - 520) / 2),
-    y: Math.floor(height * 0.25),
+    x: wa.x + wa.width - PANEL_WIDTH,
+    y: wa.y + Math.floor(wa.height * 0.25),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
     resizable: false,
-    skipTaskbar: true,
+    skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -91,10 +96,11 @@ app.whenReady().then(() => {
   ragService = new RAGService(knowledgePath, config.endpoint || DEFAULTS.endpoint);
   ragService.index().catch(e => console.error('RAG initial index failed:', e.message));
 
-  // System tray
-  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build/icon.png'))
-    .resize({ width: 18, height: 18 });
-  const tray = new Tray(trayIcon);
+  // System tray — load from buffer so the path is guaranteed to resolve
+  const trayImg = nativeImage.createFromBuffer(
+    fs.readFileSync(path.join(__dirname, 'build', 'icon.png'))
+  ).resize({ width: 22, height: 22 });
+  const tray = new Tray(trayImg);
   tray.setToolTip('Mik3Bot');
   const trayMenu = Menu.buildFromTemplate([
     { label: 'Show',  click: () => { mainWindow.show(); mainWindow.focus(); } },
@@ -265,9 +271,15 @@ ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) 
 // ── Window management IPC ─────────────────────────────────────────────────
 ipcMain.on('resize-window', (event, { height }) => {
   if (mainWindow) {
+    const wa = getWorkArea();
     const bounds = mainWindow.getBounds();
-    mainWindow.setBounds({ ...bounds, height }, true);
+    mainWindow.setBounds({ x: wa.x + wa.width - PANEL_WIDTH, y: bounds.y, width: PANEL_WIDTH, height }, true);
   }
+});
+
+ipcMain.handle('get-icon-data-url', () => {
+  const data = fs.readFileSync(path.join(__dirname, 'build', 'icon.png'));
+  return `data:image/png;base64,${data.toString('base64')}`;
 });
 
 ipcMain.on('move-window', (event, { deltaX, deltaY }) => {
