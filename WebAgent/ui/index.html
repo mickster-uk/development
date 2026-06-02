@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebAgent</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d0d10;
+      --surface:     #141418;
+      --surface2:    #1c1c22;
+      --border:      rgba(255,255,255,0.08);
+      --accent:      #ff9f4a;
+      --accent-dim:  rgba(255,159,74,0.15);
+      --text:        #f0ede8;
+      --muted:       rgba(240,237,232,0.45);
+      --ok:          #6fcf97;
+      --err:         #ff6b6b;
+      --warn:        #f5c518;
+      --radius:      10px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', system-ui, sans-serif;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .logo {
+      font-family: 'DM Mono', monospace; font-size: 15px; font-weight: 500;
+      color: var(--accent); letter-spacing: 0.06em;
+    }
+    .logo span { color: var(--muted); font-weight: 300; }
+    .header-meta { color: var(--muted); font-size: 11px; font-family: 'DM Mono', monospace; margin-left: auto; }
+    .header-status { display: flex; align-items: center; gap: 6px; font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); flex-shrink: 0; }
+    .dot.off { background: var(--err); }
+
+    /* ── Layout ─────────────────────────────────────────────── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 0;
+      height: calc(100vh - 53px);
+    }
+    .panel {
+      padding: 20px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.08) transparent;
+    }
+    .panel:first-child { border-right: 1px solid var(--border); }
+
+    /* ── Section headings ───────────────────────────────────── */
+    .section-title {
+      font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
+      color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    /* ── Add site form ───────────────────────────────────────── */
+    .add-form {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 20px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .form-row { display: flex; gap: 8px; align-items: center; }
+    .form-label {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); white-space: nowrap; width: 52px; flex-shrink: 0;
+    }
+
+    input[type="text"], input[type="number"], input[type="url"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 10px;
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--text); outline: none;
+      transition: border-color 0.15s;
+      width: 100%;
+    }
+    input:focus { border-color: rgba(255,159,74,0.5); }
+    input::placeholder { color: var(--muted); }
+    input[type="number"] { width: 64px; }
+
+    .btn {
+      border: none; border-radius: 7px; cursor: pointer;
+      font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+      padding: 6px 14px; transition: all 0.15s; white-space: nowrap;
+    }
+    .btn-primary { background: var(--accent); color: #0d0d10; }
+    .btn-primary:hover { background: #ffb870; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-danger { background: none; border: 1px solid transparent; color: var(--err); }
+    .btn-danger:hover { border-color: var(--err); }
+    .btn-sm { padding: 3px 9px; font-size: 10px; }
+
+    /* ── Site cards ──────────────────────────────────────────── */
+    .site-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .site-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      transition: border-color 0.15s;
+    }
+    .site-card:hover { border-color: rgba(255,255,255,0.14); }
+    .site-card.indexing { border-color: rgba(255,159,74,0.3); }
+
+    .site-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .site-status-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: var(--muted);
+    }
+    .site-status-dot.ready    { background: var(--ok); }
+    .site-status-dot.indexing { background: var(--warn); animation: blink 1s ease infinite; }
+    .site-status-dot.error    { background: var(--err); }
+    .site-status-dot.pending  { background: var(--muted); }
+
+    @keyframes blink {
+      0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+    }
+
+    .site-name {
+      font-size: 13px; font-weight: 500; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+    }
+    .site-url {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); margin-bottom: 8px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .site-meta {
+      display: flex; gap: 12px; margin-bottom: 8px;
+      font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
+    }
+    .site-meta-val { color: var(--text); }
+    .site-actions { display: flex; gap: 6px; }
+
+    .empty-state {
+      text-align: center; padding: 40px 20px;
+      color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace;
+    }
+
+    /* ── Search panel ────────────────────────────────────────── */
+    .search-box {
+      display: flex; gap: 8px; margin-bottom: 16px;
+    }
+    .search-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-family: 'DM Sans', sans-serif; font-size: 13px;
+      color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: rgba(255,159,74,0.5); }
+    .search-input::placeholder { color: var(--muted); }
+
+    .search-options {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 14px; flex-wrap: wrap;
+    }
+    .search-opt-label {
+      font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted);
+    }
+    .site-filter { display: flex; flex-wrap: wrap; gap: 6px; }
+    .filter-chip {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      border: 1px solid var(--border); border-radius: 5px;
+      padding: 2px 8px; cursor: pointer; color: var(--muted);
+      background: none; transition: all 0.15s;
+      user-select: none;
+    }
+    .filter-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+
+    .limit-row { display: flex; align-items: center; gap: 8px; }
+    .limit-row label { font-family: 'DM Mono', monospace; font-size: 10px; color: var(--muted); }
+    .limit-row input { width: 52px; }
+
+    /* ── Results ─────────────────────────────────────────────── */
+    .results-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+    .result-title { font-weight: 500; font-size: 13px; color: var(--text); flex: 1; }
+    .result-score {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--ok); white-space: nowrap;
+    }
+    .result-url {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--accent); opacity: 0.8;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-bottom: 6px; display: block;
+      text-decoration: none;
+    }
+    .result-url:hover { opacity: 1; }
+    .result-meta {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); margin-bottom: 8px;
+    }
+    .result-content {
+      font-size: 12px; line-height: 1.6; color: rgba(240,237,232,0.7);
+      border-left: 2px solid var(--border); padding-left: 10px;
+      white-space: pre-wrap; word-break: break-word;
+    }
+
+    .search-empty {
+      text-align: center; padding: 40px 20px;
+      color: var(--muted); font-size: 12px; font-family: 'DM Mono', monospace;
+    }
+
+    .spinner {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--border); border-top-color: var(--accent);
+      border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--text); opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none; z-index: 9999;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header>
+  <div class="logo">Web<span>Agent</span></div>
+  <div class="header-status">
+    <div class="dot" id="serverDot"></div>
+    <span id="serverStatus">connecting…</span>
+  </div>
+  <div class="header-meta" id="headerMeta"></div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Sites panel ── -->
+  <div class="panel" id="sitesPanel">
+    <div class="section-title">Sites</div>
+
+    <div class="add-form" id="addForm">
+      <div class="form-row">
+        <span class="form-label">URL</span>
+        <input type="url" id="addUrl" placeholder="https://example.com" style="flex:1;"/>
+      </div>
+      <div class="form-row">
+        <span class="form-label">Name</span>
+        <input type="text" id="addName" placeholder="optional display name" style="flex:1;"/>
+      </div>
+      <div class="form-row" style="gap:16px;">
+        <div class="form-row" style="gap:8px;">
+          <span class="form-label" style="width:auto;">depth</span>
+          <input type="number" id="addDepth" value="2" min="0" max="5"/>
+        </div>
+        <div class="form-row" style="gap:8px;">
+          <span class="form-label" style="width:auto;">max pages</span>
+          <input type="number" id="addMaxPages" value="50" min="1" max="500"/>
+        </div>
+        <button class="btn btn-primary" id="addBtn" onclick="addSite()" style="margin-left:auto;">+ Add</button>
+      </div>
+    </div>
+
+    <div class="site-list" id="siteList">
+      <div class="empty-state">No sites added yet.</div>
+    </div>
+  </div>
+
+  <!-- ── Search panel ── -->
+  <div class="panel" id="searchPanel">
+    <div class="section-title">Search</div>
+
+    <div class="search-box">
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="Enter a query to search indexed content…"
+        onkeydown="if(event.key==='Enter') doSearch()"/>
+      <button class="btn btn-primary" id="searchBtn" onclick="doSearch()">Search</button>
+    </div>
+
+    <div class="search-options">
+      <span class="search-opt-label">sites:</span>
+      <div class="site-filter" id="siteFilter">
+        <span class="filter-chip active" data-id="__all__">all</span>
+      </div>
+      <div class="limit-row" style="margin-left:auto;">
+        <label for="limitInput">results</label>
+        <input type="number" id="limitInput" value="5" min="1" max="20"/>
+      </div>
+    </div>
+
+    <div id="searchResults">
+      <div class="search-empty">Results will appear here.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API = '';  // same origin
+
+  let sites = [];
+  let pollTimer = null;
+
+  // ── Utilities ──────────────────────────────────────────────────────────
+  function toast(msg, duration = 3000) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), duration);
+  }
+
+  function fmt(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function scoreColour(s) {
+    if (s >= 0.75) return 'var(--ok)';
+    if (s >= 0.5)  return 'var(--warn)';
+    return 'var(--muted)';
+  }
+
+  function esc(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Server health ──────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const data = await r.json();
+      document.getElementById('serverDot').className = 'dot';
+      document.getElementById('serverStatus').textContent = `running · v${data.version}`;
+      document.getElementById('headerMeta').textContent = `ollama: ${data.ollamaEndpoint}`;
+    } catch {
+      document.getElementById('serverDot').className = 'dot off';
+      document.getElementById('serverStatus').textContent = 'not reachable';
+    }
+  }
+
+  // ── Sites ──────────────────────────────────────────────────────────────
+  async function fetchSites() {
+    try {
+      const r = await fetch(`${API}/api/sites`);
+      sites = await r.json();
+      renderSites();
+      renderFilterChips();
+      const hasActive = sites.some(s => s.status === 'indexing');
+      if (hasActive && !pollTimer) {
+        pollTimer = setInterval(fetchSites, 3000);
+      } else if (!hasActive && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    } catch (e) {
+      console.error('fetchSites:', e);
+    }
+  }
+
+  function renderSites() {
+    const el = document.getElementById('siteList');
+    if (!sites.length) {
+      el.innerHTML = '<div class="empty-state">No sites added yet.<br>Add a URL above to get started.</div>';
+      return;
+    }
+    el.innerHTML = sites.map(s => {
+      const statusClass = s.status || 'pending';
+      const jobInfo = s.job?.running
+        ? `<span style="color:var(--warn)"><span class="spinner"></span> indexing… ${s.job.pagesIndexed || 0} pages</span>`
+        : s.job?.error
+          ? `<span style="color:var(--err)">Error: ${esc(s.job.error)}</span>`
+          : '';
+      return `
+        <div class="site-card ${statusClass === 'indexing' ? 'indexing' : ''}" id="site-${s.id}">
+          <div class="site-header">
+            <div class="site-status-dot ${statusClass}" title="${statusClass}"></div>
+            <div class="site-name">${esc(s.name)}</div>
+          </div>
+          <div class="site-url" title="${esc(s.url)}">${esc(s.url)}</div>
+          <div class="site-meta">
+            <span>${s.stats?.pageCount ?? 0} <span class="site-meta-val">pages</span></span>
+            <span>${s.stats?.chunkCount ?? 0} <span class="site-meta-val">chunks</span></span>
+            <span>depth <span class="site-meta-val">${s.maxDepth}</span></span>
+            <span>max <span class="site-meta-val">${s.maxPages}</span></span>
+          </div>
+          ${s.lastScrapedAt ? `<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:8px;">last scraped: ${fmt(s.lastScrapedAt)}</div>` : ''}
+          ${jobInfo ? `<div style="font-family:'DM Mono',monospace;font-size:10px;margin-bottom:8px;">${jobInfo}</div>` : ''}
+          <div class="site-actions">
+            <button class="btn btn-ghost btn-sm" onclick="scrapeSite('${s.id}')"
+              ${s.status === 'indexing' ? 'disabled' : ''}>↺ scrape</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteSite('${s.id}')">delete</button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderFilterChips() {
+    const el = document.getElementById('siteFilter');
+    const allChip = `<span class="filter-chip active" data-id="__all__" onclick="toggleFilter(this)">all</span>`;
+    const siteChips = sites.map(s =>
+      `<span class="filter-chip" data-id="${s.id}" onclick="toggleFilter(this)">${esc(s.name)}</span>`
+    ).join('');
+    el.innerHTML = allChip + siteChips;
+  }
+
+  function toggleFilter(chip) {
+    const id = chip.dataset.id;
+    if (id === '__all__') {
+      document.querySelectorAll('#siteFilter .filter-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      return;
+    }
+    const allChip = document.querySelector('#siteFilter [data-id="__all__"]');
+    allChip.classList.remove('active');
+    chip.classList.toggle('active');
+    // If nothing selected, fall back to all
+    const anyActive = [...document.querySelectorAll('#siteFilter .filter-chip')].some(c => c.classList.contains('active'));
+    if (!anyActive) allChip.classList.add('active');
+  }
+
+  function getSelectedSiteIds() {
+    const allChip = document.querySelector('#siteFilter [data-id="__all__"]');
+    if (allChip?.classList.contains('active')) return undefined;
+    return [...document.querySelectorAll('#siteFilter .filter-chip.active')]
+      .map(c => c.dataset.id);
+  }
+
+  async function addSite() {
+    const url     = document.getElementById('addUrl').value.trim();
+    const name    = document.getElementById('addName').value.trim();
+    const maxDepth = parseInt(document.getElementById('addDepth').value, 10);
+    const maxPages = parseInt(document.getElementById('addMaxPages').value, 10);
+    if (!url) return toast('URL is required');
+
+    const btn = document.getElementById('addBtn');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      const r = await fetch(`${API}/api/sites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, name, maxDepth, maxPages })
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      document.getElementById('addUrl').value = '';
+      document.getElementById('addName').value = '';
+      await fetchSites();
+      toast('Site added');
+    } catch (e) {
+      toast(`Error: ${e.message}`);
+    } finally {
+      btn.disabled = false; btn.textContent = '+ Add';
+    }
+  }
+
+  async function scrapeSite(id) {
+    try {
+      const r = await fetch(`${API}/api/sites/${id}/scrape`, { method: 'POST' });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      await fetchSites();
+      toast('Scrape started');
+    } catch (e) {
+      toast(`Error: ${e.message}`);
+    }
+  }
+
+  async function deleteSite(id) {
+    const site = sites.find(s => s.id === id);
+    if (!confirm(`Delete "${site?.name}"? This removes all indexed data.`)) return;
+    try {
+      const r = await fetch(`${API}/api/sites/${id}`, { method: 'DELETE' });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      await fetchSites();
+      toast('Site deleted');
+    } catch (e) {
+      toast(`Error: ${e.message}`);
+    }
+  }
+
+  // ── Search ─────────────────────────────────────────────────────────────
+  async function doSearch() {
+    const query  = document.getElementById('searchInput').value.trim();
+    const limit  = parseInt(document.getElementById('limitInput').value, 10) || 5;
+    const siteIds = getSelectedSiteIds();
+    if (!query) return;
+
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true; btn.textContent = '…';
+    document.getElementById('searchResults').innerHTML = '<div class="search-empty"><span class="spinner"></span> searching…</div>';
+
+    try {
+      const body = { query, limit };
+      if (siteIds) body.siteIds = siteIds;
+      const r = await fetch(`${API}/api/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.error); }
+      const { results } = await r.json();
+      renderResults(results, query);
+    } catch (e) {
+      document.getElementById('searchResults').innerHTML = `<div class="search-empty" style="color:var(--err)">Error: ${esc(e.message)}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Search';
+    }
+  }
+
+  function renderResults(results, query) {
+    const el = document.getElementById('searchResults');
+    if (!results.length) {
+      el.innerHTML = '<div class="search-empty">No results found.</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:12px;">
+        ${results.length} result${results.length !== 1 ? 's' : ''} for "${esc(query)}"
+      </div>
+      <div class="results-list">
+        ${results.map((r, i) => {
+          const siteName = sites.find(s => s.id === r.siteId)?.name || r.siteId;
+          const preview = r.content.slice(0, 300).trim();
+          return `
+            <div class="result-card">
+              <div class="result-header">
+                <div class="result-title">${esc(r.title || '(no title)')}</div>
+                <div class="result-score" style="color:${scoreColour(r.score)}">
+                  ${(r.score * 100).toFixed(0)}%
+                </div>
+              </div>
+              <a class="result-url" href="${esc(r.url)}" target="_blank" title="${esc(r.url)}">${esc(r.url)}</a>
+              <div class="result-meta">${esc(siteName)} · chunk ${esc(r.section)} · scraped ${fmt(r.scrapedAt)}</div>
+              <div class="result-content">${esc(preview)}${r.content.length > 300 ? '…' : ''}</div>
+            </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────
+  checkHealth();
+  fetchSites();
+  setInterval(checkHealth, 30000);
+</script>
+</body>
+</html>

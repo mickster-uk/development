@@ -181,17 +181,62 @@ ipcMain.handle('save-starred', async (_, { prompt, response }) => {
 });
 ipcMain.handle('show-history-in-finder', () => shell.showItemInFolder(getHistoryPath()));
 
+// ── WebAgent search ───────────────────────────────────────────────────────
+async function queryWebAgent(prompt, webAgentUrl) {
+  return new Promise((resolve) => {
+    try {
+      const parsed = new URL('/api/search', webAgentUrl);
+      const transport = parsed.protocol === 'https:' ? https : http;
+      const body = JSON.stringify({ query: prompt, limit: 3 });
+
+      const req = transport.request({
+        hostname: parsed.hostname,
+        port:     parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+        path:     parsed.pathname,
+        method:   'POST',
+        headers:  { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+      }, res => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try {
+            const { results } = JSON.parse(data);
+            if (!Array.isArray(results) || !results.length) return resolve(null);
+            const context = results
+              .map(r => `**${r.title}** (${r.url})\n${r.content}`)
+              .join('\n\n---\n\n');
+            resolve(context);
+          } catch { resolve(null); }
+        });
+      });
+
+      req.setTimeout(10000, () => { req.destroy(); resolve(null); });
+      req.on('error', () => resolve(null));
+      req.write(body);
+      req.end();
+    } catch { resolve(null); }
+  });
+}
+
 // ── API call ──────────────────────────────────────────────────────────────
 ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) => {
   const baseUrl = endpoint || DEFAULTS.endpoint;
   const url = new URL('/api/chat', baseUrl);
   const transport = url.protocol === 'https:' ? https : http;
 
+  const cfg = loadConfig();
   const messages = [];
+
   if (ragService && ragService.indexed) {
     const context = await ragService.retrieve(prompt);
     if (context) messages.push({ role: 'system', content: `Relevant knowledge:\n\n${context}` });
   }
+
+  if (cfg.webAgentUrl) {
+    const webContext = await queryWebAgent(prompt, cfg.webAgentUrl);
+    if (webContext) messages.push({ role: 'system', content: `Web knowledge:\n\n${webContext}` });
+  }
+
   messages.push({ role: 'user', content: prompt });
 
   const body = JSON.stringify({

@@ -40,6 +40,7 @@ function startScrape(site) {
 
 const app = express();
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'ui')));
 
 // ── Health ────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {

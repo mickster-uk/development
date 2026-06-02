@@ -138,7 +138,7 @@
       overflow: hidden; max-height: 0;
       transition: max-height 0.25s ease;
     }
-    .settings-area.open { max-height: 300px; }
+    .settings-area.open { max-height: 380px; }
 
     .settings-row {
       display: flex; flex-direction: column; gap: 5px;
@@ -444,6 +444,12 @@
             <button class="rag-link" id="knowbaseClearBtn" onclick="clearKnowledgePath()" style="display:none;">clear</button>
             <button class="rag-link" onclick="browseKnowledgePath()">browse ↗</button>
           </div>
+          <div class="rag-row" style="margin-top:4px;">
+            <span class="settings-label">webagent</span>
+            <input type="text" class="settings-input" id="webAgentInput" style="flex:1;"
+              placeholder="http://localhost:57422" autocomplete="off"/>
+            <span class="rag-status-text idle" id="webAgentStatus" style="flex:none;margin-left:6px;"></span>
+          </div>
           <div class="rag-row" style="margin-top:6px;">
             <span class="settings-label">history</span>
             <span class="rag-path">history.json</span>
@@ -497,6 +503,25 @@
       markdownToggle.checked     = cfg.renderMarkdown === true;
       storeHistoryToggle.checked = cfg.storeHistory !== false;
       setKnowledgePathUI(cfg.knowbasePath || null);
+      document.getElementById('webAgentInput').value = cfg.webAgentUrl || '';
+      if (cfg.webAgentUrl) checkWebAgent(cfg.webAgentUrl);
+    }
+
+    async function checkWebAgent(url) {
+      const statusEl = document.getElementById('webAgentStatus');
+      if (!url) { statusEl.textContent = ''; return; }
+      statusEl.textContent = '…';
+      statusEl.className = 'rag-status-text idle';
+      try {
+        const r = await fetch(url + '/health');
+        const data = await r.json();
+        const sites = await (await fetch(url + '/api/sites')).json();
+        statusEl.textContent = `● connected · ${sites.length} site${sites.length !== 1 ? 's' : ''}`;
+        statusEl.className = 'rag-status-text ok';
+      } catch {
+        statusEl.textContent = '● offline';
+        statusEl.className = 'rag-status-text err';
+      }
     }
 
     function setKnowledgePathUI(p) {
@@ -534,9 +559,14 @@
         model:          modelInput.value.trim(),
         apiKey:         apiKeyInput.value.trim(),
         renderMarkdown: markdownToggle.checked,
-        storeHistory:   storeHistoryToggle.checked
+        storeHistory:   storeHistoryToggle.checked,
+        webAgentUrl:    document.getElementById('webAgentInput').value.trim()
       });
     }
+
+    const webAgentInput = document.getElementById('webAgentInput');
+    webAgentInput.addEventListener('change', () => { persistConfig(); checkWebAgent(webAgentInput.value.trim()); });
+    webAgentInput.addEventListener('blur',   () => { persistConfig(); checkWebAgent(webAgentInput.value.trim()); });
 
     [endpointInput, modelInput, apiKeyInput].forEach(el => {
       el.addEventListener('change', persistConfig);
@@ -602,7 +632,10 @@
     function toggleSettings() {
       settingsOpen = !settingsOpen;
       settingsArea.classList.toggle('open', settingsOpen);
-      if (settingsOpen) refreshRAGStatus();
+      if (settingsOpen) {
+        refreshRAGStatus();
+        checkWebAgent(document.getElementById('webAgentInput').value.trim());
+      }
       updateWindowHeight();
       setTimeout(updateWindowHeight, 280); // re-measure after 250ms transition
     }
