@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut, screen, shell, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, screen, shell, dialog, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const http = require('http');
 const https = require('https');
@@ -90,6 +90,23 @@ app.whenReady().then(() => {
   const knowledgePath = config.knowbasePath || KNOWLEDGE_PATH;
   ragService = new RAGService(knowledgePath, config.endpoint || DEFAULTS.endpoint);
   ragService.index().catch(e => console.error('RAG initial index failed:', e.message));
+
+  // System tray
+  const trayIcon = nativeImage.createFromPath(path.join(__dirname, 'build/icon.png'))
+    .resize({ width: 18, height: 18 });
+  const tray = new Tray(trayIcon);
+  tray.setToolTip('Mik3Bot');
+  const trayMenu = Menu.buildFromTemplate([
+    { label: 'Show',  click: () => { mainWindow.show(); mainWindow.focus(); } },
+    { label: 'Hide',  click: () => mainWindow.hide() },
+    { type: 'separator' },
+    { label: 'Quit',  click: () => app.quit() },
+  ]);
+  tray.setContextMenu(trayMenu);
+  tray.on('click', () => {
+    if (mainWindow.isVisible()) mainWindow.hide();
+    else { mainWindow.show(); mainWindow.focus(); }
+  });
 
   // Cmd/Ctrl+Shift+Space toggles the window
   globalShortcut.register('CommandOrControl+Shift+Space', () => {

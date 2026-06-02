@@ -53,12 +53,12 @@
 
     .brand {
       display: flex; align-items: center; gap: 6px;
-      -webkit-app-region: no-drag; pointer-events: none;
+      -webkit-app-region: drag; pointer-events: none;
     }
     .brand-icon {
-      width: 14px; height: 14px;
-      background: var(--accent); border-radius: 50%;
-      box-shadow: 0 0 8px var(--accent); opacity: 0.9;
+      width: 18px; height: 18px;
+      border-radius: 4px; object-fit: cover;
+      opacity: 0.9;
     }
     .brand-name {
       font-family: 'DM Mono', monospace; font-size: 10px; font-weight: 500;
@@ -370,7 +370,7 @@
       <!-- Drag bar -->
       <div class="drag-bar">
         <div class="brand">
-          <div class="brand-icon"></div>
+          <img class="brand-icon" src="build/icon.png" draggable="false">
           <span class="brand-name">Mik3Bot</span>
         </div>
         <div class="controls">
