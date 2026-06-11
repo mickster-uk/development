@@ -67,7 +67,7 @@ async function createWindow() {
     backgroundColor: '#00000000',
     hasShadow:       true,
     icon:            path.join(__dirname, 'assets', 'icons', 'icon-512.png'),
-    resizable:       false,   // custom left-edge resize handle
+    resizable:       true,
     movable:         false,   // stays at the right edge
     alwaysOnTop:     false,
     skipTaskbar:     false,
@@ -370,6 +370,12 @@ ipcMain.handle('get-version',   ()          => app.getVersion());
 ipcMain.handle('set-always-on-top', (_, val) => {
   mainWindow.setAlwaysOnTop(val, 'floating');
   return { success: true };
+});
+
+ipcMain.on('zoom-window', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMaximized()) mainWindow.unmaximize();
+  else mainWindow.maximize();
 });
 
 // Custom resize: renderer sends desired pixel width

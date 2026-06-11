@@ -138,6 +138,7 @@ contextBridge.exposeInMainWorld('api', {
   quitApp:        ()    => ipcRenderer.invoke('quit-app'),
   setAlwaysOnTop: (val) => ipcRenderer.invoke('set-always-on-top', val),
   resizeWindow:   (w)   => ipcRenderer.send('resize-window', w),
+  zoomWindow:     ()    => ipcRenderer.send('zoom-window'),
 
   // Multi-display
   getDisplays:    ()    => ipcRenderer.invoke('get-displays'),

@@ -1176,6 +1176,7 @@ function setupKeyboard() {
 
 // ─── Bind events ─────────────────────────────────────────────────────────────
 function bindEvents() {
+  $('titlebar').addEventListener('dblclick', () => api.zoomWindow());
   el.btnSidebarToggle.addEventListener('click', toggleSidebar);
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnTheme.addEventListener('click', toggleTheme);
