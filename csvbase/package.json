@@ -1,0 +1,20 @@
+{
+  "name": "csvbase",
+  "version": "0.1.0",
+  "description": "CLI to convert CSV financial data to Markdown for Knowbase",
+  "main": "index.js",
+  "bin": {
+    "csvbase": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest",
+    "test:ci": "jest --ci --json --outputFile=../../../Documents/knowbase/apps/csvbase/tests/unit/results.json"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
+  }
+}
