@@ -37,6 +37,7 @@ const el = {
   emptyHint:      $('empty-hint'),
   btnOpenFolder:  $('btn-open-folder'),
   btnNewFile:     $('btn-new-file'),
+  btnRefresh:     $('btn-refresh'),
   content:        $('content'),
   welcome:        $('welcome'),
   mdScroll:       $('md-scroll'),
@@ -225,6 +226,7 @@ async function loadFolder(folderPath) {
   const folderName = folderPath.split(/[/\\]/).pop() || folderPath;
   el.tbTitle.textContent = folderName;
   el.btnNewFile.disabled = false;
+  el.btnRefresh.disabled = false;
 
   const res = await api.readDirectory(folderPath);
   if (!res.success) { showError('Could not read folder: ' + res.error); return; }
@@ -1188,6 +1190,7 @@ function bindEvents() {
   el.btnHide.addEventListener('click', () => api.quitApp());
   el.btnOpenFolder.addEventListener('click', openFolderDialog);
   el.btnNewFile.addEventListener('click', newItemAtRoot);
+  el.btnRefresh.addEventListener('click', () => { if (state.currentFolder) loadFolder(state.currentFolder); });
 
   // Editor toolbar
   el.btnEditMode.addEventListener('click', enterEditMode);
