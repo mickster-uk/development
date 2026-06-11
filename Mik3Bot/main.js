@@ -8,6 +8,12 @@ const { RAGService } = require('./src/rag-service');
 const KNOWLEDGE_PATH = path.join(__dirname, 'knowledge');
 let ragService;
 
+function getIconPath() {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, 'build', 'icon.png');
+}
+
 // ── Persistent config (plain JSON in userData) ────────────────────────────
 function getConfigPath() {
   return path.join(app.getPath('userData'), 'config.json');
@@ -98,7 +104,7 @@ app.whenReady().then(() => {
 
   // System tray — load from buffer so the path is guaranteed to resolve
   const trayImg = nativeImage.createFromBuffer(
-    fs.readFileSync(path.join(__dirname, 'build', 'icon.png'))
+    fs.readFileSync(getIconPath())
   ).resize({ width: 22, height: 22 });
   const tray = new Tray(trayImg);
   tray.setToolTip('Mik3Bot');
@@ -219,25 +225,34 @@ async function queryWebAgent(prompt, webAgentUrl) {
 }
 
 // ── API call ──────────────────────────────────────────────────────────────
-ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) => {
+ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt, messages: historyMessages }) => {
   const baseUrl = endpoint || DEFAULTS.endpoint;
   const url = new URL('/api/chat', baseUrl);
   const transport = url.protocol === 'https:' ? https : http;
 
   const cfg = loadConfig();
-  const messages = [];
+
+  // Full conversation history if provided; otherwise fall back to a single turn
+  const conversationMessages = Array.isArray(historyMessages) && historyMessages.length
+    ? historyMessages
+    : [{ role: 'user', content: prompt }];
+
+  // Use the latest user message for RAG / web context retrieval
+  const latestUserContent = [...conversationMessages].reverse().find(m => m.role === 'user')?.content || prompt;
+
+  const systemMessages = [];
 
   if (ragService && ragService.indexed) {
-    const context = await ragService.retrieve(prompt);
-    if (context) messages.push({ role: 'system', content: `Relevant knowledge:\n\n${context}` });
+    const context = await ragService.retrieve(latestUserContent);
+    if (context) systemMessages.push({ role: 'system', content: `Relevant knowledge:\n\n${context}` });
   }
 
   if (cfg.webAgentUrl) {
-    const webContext = await queryWebAgent(prompt, cfg.webAgentUrl);
-    if (webContext) messages.push({ role: 'system', content: `Web knowledge:\n\n${webContext}` });
+    const webContext = await queryWebAgent(latestUserContent, cfg.webAgentUrl);
+    if (webContext) systemMessages.push({ role: 'system', content: `Web knowledge:\n\n${webContext}` });
   }
 
-  messages.push({ role: 'user', content: prompt });
+  const messages = [...systemMessages, ...conversationMessages];
 
   const body = JSON.stringify({
     model: model || DEFAULTS.model,
@@ -282,7 +297,7 @@ ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt }) 
             const history = loadHistory();
             history.push({
               timestamp: Date.now(),
-              query: prompt,
+              query: latestUserContent,
               response: content,
               model: model || DEFAULTS.model
             });
@@ -323,7 +338,7 @@ ipcMain.on('resize-window', (event, { height }) => {
 });
 
 ipcMain.handle('get-icon-data-url', () => {
-  const data = fs.readFileSync(path.join(__dirname, 'build', 'icon.png'));
+  const data = fs.readFileSync(getIconPath());
   return `data:image/png;base64,${data.toString('base64')}`;
 });
 

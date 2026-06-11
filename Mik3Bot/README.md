@@ -1,78 +1,25 @@
 # Mik3Bot
 
-A minimal floating desktop assistant for the Llama API / Ollama API.
+A minimal floating desktop assistant powered by Ollama or any Llama-compatible API.
 
 ## What it does
 
-- Opens a frameless, always-on-top floating window.
-- Sends user prompts to a local or remote Llama-compatible `/api/chat` endpoint.
-- Saves configuration in Electron user data.
-- Stores query history locally when enabled.
-- Supports markdown rendering for responses.
-- Offers a global toggle shortcut: `Cmd/Ctrl + Shift + Space`.
-
-## Features
-
-- Floating overlay window with drag support.
-- Persistent settings stored in `config.json` inside Electron app data.
-- Local history storage in `history.json` when `storeHistory` is enabled.
-- API fallback parsing for Ollama, OpenAI-compatible, and Llama API responses.
-- Response copy button and elapsed time display.
-- Configurable endpoint, model, and API key.
-
-## Defaults
-
-The app uses these defaults when no saved config exists:
-
-- `endpoint`: `http://localhost:11434`
-- `model`: `gemma4:latest`
-- `apiKey`: `` (blank)
-- `renderMarkdown`: `true`
-- `storeHistory`: `true`
+- Floating, always-on-top overlay window with drag support
+- Multi-turn conversation memory — follow-up questions retain context from earlier in the thread
+- RAG (retrieval-augmented generation) from a local knowledge folder
+- Optional Knowbase folder integration for richer context
+- Optional WebAgent integration for live web search context
+- Markdown rendering for responses
+- Star responses to save them as Markdown notes
+- Query history saved locally
+- Global toggle shortcut: `Cmd/Ctrl + Shift + Space`
 
 ## Installation
 
 ```bash
 npm install
-```
-
-## Running
-
-```bash
 npm start
 ```
-
-## Configuration
-
-Click **⚙ config** in the app to open settings.
-
-You can configure:
-
-- `endpoint` — the base URL for the `/api/chat` request.
-- `model` — the model name to send in requests.
-- `apiKey` — optional bearer token for remote endpoints.
-- `renderMarkdown` — toggle markdown rendering in responses.
-- `storeHistory` — enable or disable local history saving.
-
-## History storage
-
-When enabled, each successful prompt-response pair is appended to `history.json` in the Electron user data directory.
-
-Each history entry includes:
-
-- `timestamp`
-- `query`
-- `response`
-- `model`
-
-## Usage
-
-- Type your prompt in the input field.
-- Press **Enter** to submit.
-- Press **Escape** to close the response panel.
-- Click the yellow dot to hide the window.
-- Click the red dot to quit the app.
-- Use `Cmd/Ctrl + Shift + Space` to show or hide the window.
 
 ## Build
 
@@ -80,16 +27,84 @@ Each history entry includes:
 npm run build
 ```
 
-This uses `electron-builder` and produces platform packages configured in `package.json`.
+Produces platform packages via `electron-builder` using the config in `package.json`.
 
-## Notes
+## Usage
 
-- The app uses Electron IPC to bridge the renderer and main process.
-- Config and history files are stored in the app's `userData` path.
-- If the endpoint connection is refused, the app reports a connection error.
+| Action | How |
+|---|---|
+| Submit prompt | Type and press **Enter** |
+| Follow-up question | Type and press **Enter** — the model remembers the conversation |
+| Start a new conversation | Click **↺ new** (appears after the first exchange) |
+| Close response panel | Press **Escape** |
+| Hide window | Click the yellow dot, or `Cmd/Ctrl + Shift + Space` |
+| Quit | Click the red dot |
+| Open settings | Click **⚙ config** |
+| Save a response | Click **☆** on any response |
+
+## Conversation memory
+
+Each session maintains a conversation thread in memory. The full exchange is sent to the model on every turn, so follow-up questions work naturally:
+
+```
+You:     Who wrote Hamlet?
+Bot:     William Shakespeare.
+
+You:     When was it written?
+Bot:     Around 1600–1601.        ← knows "it" means Hamlet
+```
+
+The thread persists until you click **↺ new** or restart the app. The turn count is shown next to **↺ new** so you always know the context depth.
+
+RAG and web context are refreshed on every turn using the latest message, so new questions pull in the most relevant knowledge even mid-conversation.
+
+## Settings
+
+Click **⚙ config** to open the settings panel.
+
+| Setting | Description |
+|---|---|
+| `endpoint` | Base URL for the `/api/chat` request |
+| `model` | Model name sent in requests |
+| `api key` | Optional bearer token for remote endpoints |
+| `render markdown` | Toggle markdown rendering in responses |
+| `store history` | Enable or disable local history saving |
+| `knowledge` | Built-in RAG knowledge folder |
+| `knowbase` | External folder to include in RAG context (e.g. your Knowbase notes) |
+| `webagent` | URL of a running WebAgent instance for live web search |
+
+## Defaults
+
+| Setting | Default |
+|---|---|
+| `endpoint` | `http://localhost:11434` |
+| `model` | `gemma4:latest` |
+| `apiKey` | *(blank)* |
+| `renderMarkdown` | `true` |
+| `storeHistory` | `true` |
+
+## RAG (knowledge base)
+
+Mik3Bot indexes Markdown files from the knowledge folder and retrieves relevant chunks to include as context alongside your prompt. To update the index after adding files, click **re-index** in the settings panel.
+
+You can also point it at your Knowbase folder to query those notes directly.
+
+## History
+
+When `storeHistory` is enabled, each prompt-response pair is appended to `history.json` in the Electron user data directory. Each entry contains:
+
+- `timestamp`
+- `query`
+- `response`
+- `model`
+
+Click **show in Finder** in the settings panel to locate the file.
+
+## Starred responses
+
+Click **☆** on any response to save it as a Markdown file in the `Starred/` subfolder of your knowledge or Knowbase directory. Saved files are named by date and prompt.
 
 ## Requirements
 
-- Node.js
-- npm
-- Electron-compatible environment
+- Node.js 18+
+- Ollama running locally, or any OpenAI-compatible `/api/chat` endpoint

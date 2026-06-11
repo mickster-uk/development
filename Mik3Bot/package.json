@@ -1,24 +1,33 @@
 {
   "name": "Mik3Bot",
-  "version": "1.1.0",
+  "version": "1.8.0",
   "description": "A minimal desktop AI assistant powered by Llama API",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "prebuild": "npm version minor --no-git-tag-version",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "test": "jest --testPathPatterns=src/",
+    "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/mik3bot/tests/unit/results.json"
   },
   "dependencies": {
     "axios": "^1.7.9"
   },
   "devDependencies": {
     "electron": "^41.5.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "jest": "^30.4.2"
   },
   "build": {
     "appId": "com.mik3bot.desktop",
     "productName": "Mik3Bot",
     "icon": "build/icon",
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
+    ],
     "mac": {
       "icon": "build/icon.icns",
       "category": "public.app-category.productivity"

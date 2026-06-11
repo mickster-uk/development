@@ -361,6 +361,22 @@
     }
     .reindex-btn:hover { color: var(--accent); border-color: var(--accent); }
     .reindex-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Conversation indicator */
+    .conv-indicator {
+      display: none; align-items: center; gap: 5px;
+    }
+    .conv-turns {
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--accent); opacity: 0.75;
+    }
+    .conv-clear {
+      background: none; border: none; padding: 1px 4px;
+      font-family: 'DM Mono', monospace; font-size: 9px;
+      color: var(--text-muted); cursor: pointer; border-radius: 4px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .conv-clear:hover { color: var(--accent); background: rgba(255,159,74,0.1); }
   </style>
 </head>
 <body>
@@ -393,6 +409,10 @@
       <!-- Settings toggle -->
       <div class="settings-bar">
         <button class="settings-toggle" onclick="toggleSettings()">⚙ config</button>
+        <span class="conv-indicator" id="convIndicator">
+          <span class="conv-turns" id="convTurns"></span>
+          <button class="conv-clear" onclick="clearConversation()" title="Start a new conversation">↺ new</button>
+        </span>
         <span class="kbd-hint">⌘⇧Space to toggle</span>
         <span class="app-version" id="appVersion"></span>
       </div>
@@ -488,6 +508,22 @@
     let settingsOpen = false;
     let lastResponseText = '';
     let lastPromptText   = '';
+    let conversationHistory = []; // { role: 'user'|'assistant', content: string }[]
+
+    function updateConvIndicator() {
+      const turns = Math.floor(conversationHistory.length / 2);
+      const el = document.getElementById('convIndicator');
+      const turnsEl = document.getElementById('convTurns');
+      el.style.display = turns > 0 ? 'flex' : 'none';
+      turnsEl.textContent = `${turns} turn${turns !== 1 ? 's' : ''}`;
+    }
+
+    function clearConversation() {
+      conversationHistory = [];
+      updateConvIndicator();
+      closeResponse();
+      promptInput.focus();
+    }
 
     // Configure marked for safe rendering
     if (typeof marked !== 'undefined') {
@@ -661,18 +697,31 @@
       const model    = modelInput.value.trim() || 'gemma4:latest';
       const apiKey   = apiKeyInput.value.trim();
 
+      conversationHistory.push({ role: 'user', content: prompt });
+      updateConvIndicator();
+
       sendBtn.disabled = true;
       showLoading();
 
       const startTime = Date.now();
       try {
-        const response = await window.electronAPI.callLlama({ endpoint, apiKey, model, prompt });
+        const response = await window.electronAPI.callLlama({
+          endpoint, apiKey, model,
+          prompt,                          // kept for backward compat
+          messages: conversationHistory    // full thread
+        });
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+        conversationHistory.push({ role: 'assistant', content: response });
+        updateConvIndicator();
+
         lastResponseText = response;
         lastPromptText   = prompt;
         showResponse(response, model, elapsed);
         promptInput.value = '';
       } catch (err) {
+        conversationHistory.pop(); // roll back the user turn on failure
+        updateConvIndicator();
         showError(err.message || 'Something went wrong.');
       } finally {
         sendBtn.disabled = false;
