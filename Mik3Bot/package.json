@@ -1,13 +1,13 @@
 {
   "name": "Mik3Bot",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "A minimal desktop AI assistant powered by Llama API",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "prebuild": "npm version minor --no-git-tag-version",
     "build": "electron-builder",
-    "postbuild": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && rm -f \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\"",
+    "postbuild": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && { test ! -e \"$HOME/Desktop/$APP_NAME\" && test ! -L \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\" || true; }",
     "test": "jest --testPathPatterns=src/",
     "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/mik3bot/tests/unit/results.json"
   },
