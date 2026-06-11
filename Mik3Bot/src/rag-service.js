@@ -97,8 +97,24 @@ class RAGService {
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
 
-    if (scored.length === 0) return '';
-    return scored.map(c => `[${c.source}]\n${c.text}`).join('\n\n---\n\n');
+    // Keyword fallback — catches proper nouns and compound merchant names that
+    // semantic models score poorly (e.g. "HollywoodBowlGroup" as one token).
+    // Splits camelCase/PascalCase so "HollywoodBowlGroup" → ["hollywood","bowl","group"].
+    const splitTerms = query
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(t => t.length > 2);
+
+    const seenTexts = new Set(scored.map(c => c.text));
+    const keyword = this.chunks
+      .filter(c => !seenTexts.has(c.text))
+      .filter(c => splitTerms.some(t => c.text.toLowerCase().includes(t)))
+      .slice(0, topK);
+
+    const combined = [...scored, ...keyword];
+    if (combined.length === 0) return '';
+    return combined.map(c => `[${c.source}]\n${c.text}`).join('\n\n---\n\n');
   }
 
   getStatus() {
