@@ -6,7 +6,9 @@
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE= electron .",
     "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "test": "jest --testPathPatterns=lib/",
+    "test:ci": "jest --testPathPatterns=lib/ --ci --json --outputFile=../../../Documents/knowbase/apps/promptbase/tests/unit/results.json"
   },
   "keywords": [
     "electron",
@@ -18,7 +20,8 @@
   "license": "MIT",
   "devDependencies": {
     "electron": "^42.3.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "jest": "^30.4.2"
   },
   "build": {
     "appId": "com.promptbase.app",

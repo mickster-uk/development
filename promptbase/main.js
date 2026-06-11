@@ -4,6 +4,7 @@ const fs = require('fs');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+const { normalizeEndpoint, isChatModel, normalizeModelList, parseTemplateMarkdown } = require('./lib/utils');
 
 const CONFIG_FILE = path.join(app.getPath('userData'), 'promptbase-config.json');
 const PROMPTS_DIR = path.join(__dirname, 'prompts');
@@ -38,13 +39,6 @@ function loadConfig() {
       promptsDir: DEFAULT_PROMPTS_DIR
     };
   }
-}
-
-function normalizeEndpoint(endpoint) {
-  if (!endpoint || typeof endpoint !== 'string') {
-    return 'http://localhost:11434/v1';
-  }
-  return endpoint.trim().replace(/\/+$/, '');
 }
 
 function saveConfig(config) {
@@ -84,27 +78,6 @@ function requestJson(url, options = {}, timeoutMs = 60000) {
     }
     req.end();
   });
-}
-
-function isChatModel(model) {
-  return typeof model === 'string' && !/(embed|embedding|text-embedding)/i.test(model);
-}
-
-function normalizeModelList(parsed) {
-  const normalize = (entries, selector) => entries
-    .map((entry) => selector(entry) || String(entry))
-    .filter(Boolean);
-
-  const result = Array.isArray(parsed)
-    ? normalize(parsed, (entry) => entry.name || entry.id)
-    : Array.isArray(parsed.models)
-      ? normalize(parsed.models, (entry) => entry.name || entry.id)
-      : Array.isArray(parsed.data)
-        ? normalize(parsed.data, (entry) => entry.id || entry.name)
-        : normalize(Object.keys(parsed), (entry) => entry);
-
-  const chatModels = result.filter(isChatModel);
-  return chatModels.length ? chatModels : result;
 }
 
 async function callOllamaChat(endpoint, apiKey, model, messages) {
@@ -163,19 +136,6 @@ async function getOllamaModels(endpoint) {
   }
 
   throw new Error(`Could not fetch models from ${endpoint}: ${lastError?.message || 'unknown error'}`);
-}
-
-function parseTemplateMarkdown(content) {
-  const useCaseMatch = content.match(/##\s*Use case\s*\n([\s\S]*?)(?:\n##|$)/i);
-  const questionsMatch = content.match(/##\s*Qualifying questions\s*\n([\s\S]*?)(?:\n##|$)/i);
-  const nameMatch = content.match(/^#\s*(.+)$/m);
-  const description = useCaseMatch ? useCaseMatch[1].trim().split('\n')[0] : '';
-  const questions = questionsMatch ? questionsMatch[1].trim().split(/\r?\n/).filter(Boolean) : [];
-  return {
-    title: nameMatch ? nameMatch[1].trim() : null,
-    useCase: description,
-    questions
-  };
 }
 
 ipcMain.handle('get-config', () => loadConfig());
