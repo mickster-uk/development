@@ -1,0 +1,79 @@
+{
+  "name": "promptbase",
+  "version": "0.1.1",
+  "description": "A prompt engineering assistant that helps generate and refine prompts using local Ollama models.",
+  "main": "main.js",
+  "scripts": {
+    "start": "ELECTRON_RUN_AS_NODE= electron .",
+    "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [
+    "electron",
+    "ollama",
+    "prompt",
+    "prompt-engineering"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^42.3.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.promptbase.app",
+    "productName": "Promptbase",
+    "files": [
+      "**/*",
+      "!node_modules",
+      "!build/*",
+      "build/icons/**",
+      "!*.code-search"
+    ],
+    "directories": {
+      "buildResources": "build/icons"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "build/icons/icon.icns",
+      "category": "public.app-category.utilities"
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 110,
+          "y": 150,
+          "type": "file"
+        },
+        {
+          "x": 240,
+          "y": 150,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "build/icons/icon-512.png",
+      "category": "Utility"
+    }
+  }
+}

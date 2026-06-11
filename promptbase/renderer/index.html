@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Promptbase</title>
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Header -->
+    <header class="top-bar">
+      <div class="header-left">
+        <div class="brand">
+          <div class="brand-icon"></div>
+          <div>
+            <div class="brand-title">Promptbase</div>
+            <div class="brand-subtitle">AI prompt engineering for Ollama</div>
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="btnSettings" class="icon-button" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24M19.78 19.78l-4.24-4.24M19.78 4.22l-4.24 4.24"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-button active" data-tab="generate" title="Generate and refine prompts">
+        <span class="tab-icon">✨</span>
+        <span class="tab-label">Generate</span>
+      </button>
+      <button class="tab-button" data-tab="templates" title="Manage prompt templates">
+        <span class="tab-icon">📋</span>
+        <span class="tab-label">Templates</span>
+      </button>
+      <button class="tab-button" data-tab="history" title="View saved prompts">
+        <span class="tab-icon">💾</span>
+        <span class="tab-label">Library</span>
+      </button>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="workspace">
+      <!-- Generate Tab -->
+      <div class="tab-content active" data-tab="generate">
+        <div class="workflow-steps">
+          <button class="step-pill active" data-step="1">1. Define idea</button>
+          <button class="step-pill" data-step="2">2. Refine prompt</button>
+          <button class="step-pill" data-step="3">3. Test prompt</button>
+          <button class="step-pill" data-step="4">4. Save prompt</button>
+        </div>
+        <div class="workflow-tip" id="workflowTip">Start by describing your idea and choose a template if you want better prompt structure.</div>
+        <div class="workspace-grid">
+          <!-- Left Column: Input -->
+          <section class="panel input-section" data-step-panel="1">
+            <div class="panel-heading"><span class="panel-step">Step 1</span> Your Idea</div>
+            <div class="panel-content">
+              <textarea id="ideaInput" class="idea-textarea" placeholder="Describe what you want the prompt to accomplish...&#10;&#10;Example: Create a customer support assistant that handles billing questions"></textarea>
+
+              <div class="settings-grid">
+                <div class="field-group">
+                  <label class="field-label">Template</label>
+                  <select id="templateSelect" class="select-input">
+                    <option value="">None</option>
+                  </select>
+                </div>
+                <div class="field-group">
+                  <label class="field-label">Count</label>
+                  <input id="promptCount" type="number" min="1" max="6" value="3" class="number-input">
+                </div>
+              </div>
+
+              <div class="button-group">
+                <button id="btnGeneratePrompts" class="btn btn-primary btn-lg">Generate Prompts</button>
+                <button id="btnSuggestTemplates" class="btn btn-secondary">Suggest Ideas</button>
+              </div>
+
+              <div id="suggestionsList" class="suggestions-list"></div>
+            </div>
+          </section>
+
+          <!-- Middle Column: Candidates & Refinement -->
+          <section class="panel candidates-section" data-step-panel="2">
+            <div class="panel-heading"><span class="panel-step">Step 2</span> Select &amp; Refine</div>
+            <div class="panel-content">
+              <div class="candidate-list" id="candidatesList"></div>
+
+              <div class="selected-section">
+                <div class="section-heading">Selected Prompt</div>
+                <pre id="selectedPreview" class="selected-preview">Click a candidate above to select it</pre>
+                <button id="btnRefinePrompt" class="btn btn-primary btn-lg" disabled>Apply Best Practices</button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Right Column: Results -->
+          <section class="panel results-section" data-step-panel="3">
+            <div class="panel-heading"><span class="panel-step">Step 3/4</span> Test &amp; Save</div>
+            <div class="panel-content">
+              <div class="section-heading">Final Prompt</div>
+              <textarea id="selectedPrompt" class="prompt-textarea" placeholder="Your refined prompt will appear here after step 2. You can also type a prompt directly."></textarea>
+
+              <div class="action-buttons">
+                <button id="btnRunPrompt" class="btn btn-primary btn-lg">Test Prompt</button>
+                <button id="btnSavePrompt" class="btn btn-secondary">Save Prompt</button>
+              </div>
+
+              <div class="response-container">
+                <div class="response-label">Output</div>
+                <pre id="responseOutput" class="response-output">Test your final prompt to see the generated output</pre>
+              </div>
+
+              <div class="enhancement-section">
+                <div class="section-heading">Improve Results</div>
+                <textarea id="enhancementInput" class="enhancement-textarea" placeholder="How would you like to improve this prompt?&#10;&#10;Example: Make it shorter, add more context, focus on tone"></textarea>
+                <button id="btnEnhancePrompt" class="btn btn-secondary btn-sm">Enhance Prompt</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Templates Tab -->
+      <div class="tab-content" data-tab="templates">
+        <div class="workspace-grid templates-grid">
+          <!-- Existing Templates -->
+          <section class="panel templates-list-section">
+            <div class="panel-heading">Saved Templates</div>
+            <div class="panel-content">
+              <div class="template-list" id="templatesList"></div>
+              <div class="template-details hidden" id="templateDetails">
+                <div class="detail-heading">Template Details</div>
+                <div id="templateUseCase" class="detail-text">Select a template to view details.</div>
+                <div id="templateQuestions" class="detail-questions"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Create Template -->
+          <section class="panel template-editor-section">
+            <div class="panel-heading">Create New Template</div>
+            <div class="panel-content">
+              <label class="field-label" for="templateTitle">Template Name</label>
+              <input id="templateTitle" type="text" placeholder="e.g. Customer Support" class="text-input">
+
+              <label class="field-label" for="templateUseCaseInput">Use Case</label>
+              <textarea id="templateUseCaseInput" rows="2" class="textarea-input" placeholder="When and why would you use this template?"></textarea>
+
+              <label class="field-label" for="templateQuestionsInput">Qualifying Questions</label>
+              <textarea id="templateQuestionsInput" rows="3" class="textarea-input" placeholder="One question per line. These help guide prompt generation."></textarea>
+
+              <label class="field-label" for="templatePromptStructure">Prompt Structure</label>
+              <textarea id="templatePromptStructure" rows="5" class="textarea-input" placeholder="Describe how prompts generated from this template should be structured."></textarea>
+
+              <button id="btnSaveTemplate" class="btn btn-primary btn-lg">Save Template</button>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- History/Library Tab -->
+      <div class="tab-content" data-tab="history">
+        <section class="panel">
+          <div class="panel-heading">Saved Prompts</div>
+          <div class="panel-content">
+            <p style="color: #6b7280; text-align: center; padding: 40px 20px;">Saved prompts will appear here</p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <h3>Ollama Connection</h3>
+          <label class="field-label">Endpoint URL</label>
+          <input id="endpointInput" type="text" placeholder="http://localhost:11434/v1" class="text-input">
+          <p class="help-text">The URL where your Ollama API is running</p>
+        </div>
+
+        <div class="settings-section">
+          <h3>API Key</h3>
+          <label class="field-label">Optional API Key</label>
+          <input id="apiKeyInput" type="password" placeholder="Leave blank if not needed" class="text-input">
+          <p class="help-text">Only required if your Ollama instance requires authentication</p>
+        </div>
+
+        <div class="settings-section">
+          <h3>Models</h3>
+          <div class="models-grid">
+            <div class="field-group">
+              <label class="field-label">Generator Model</label>
+              <select id="generatorModel" class="select-input"></select>
+              <p class="help-text">Used to generate prompt candidates</p>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Task Model</label>
+              <select id="taskModel" class="select-input"></select>
+              <p class="help-text">Used to test and run prompts</p>
+            </div>
+          </div>
+        </div>
+
+        <button id="btnRefreshModels" class="btn btn-primary">Refresh Available Models</button>
+
+        <div class="settings-section">
+          <h3>Prompts Output</h3>
+          <label class="field-label">Save Directory</label>
+          <input id="promptsDirInput" type="text" class="text-input" placeholder="e.g. /Users/you/Documents/knowbase/prompts">
+          <p class="help-text">Where saved prompts are written as Markdown files</p>
+        </div>
+
+        <button id="btnSaveSettings" class="btn btn-primary">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="statusBar" class="status-bar" aria-live="polite"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
