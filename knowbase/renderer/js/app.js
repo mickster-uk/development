@@ -48,6 +48,17 @@ const el = {
   btnViewMode:    $('btn-view-mode'),
   editorWrap:     $('editor-wrap'),
   mdEditor:       $('md-editor'),
+  jsonView:         $('json-view'),
+  jsonBanner:       $('json-banner'),
+  jsonBannerMsg:    $('json-banner-msg'),
+  jsonFixBtn:       $('json-fix-btn'),
+  jsonFormatBtn:    $('json-format-btn'),
+  jsonPre:          $('json-pre'),
+  jsonEditorWrap:   $('json-editor-wrap'),
+  jsonCodeEditor:   $('json-code-editor'),
+  jsonHighlightPre: $('json-highlight-pre'),
+  jsonCodeTA:       $('json-code-textarea'),
+  jsonTbMsg:        $('json-tb-msg'),
   statusFile:     $('status-file'),
   statusMeta:     $('status-meta'),
   hlTheme:        $('hljs-theme'),
@@ -452,19 +463,209 @@ async function openFile(filePath) {
   const res = await api.readFile(filePath);
   if (!res.success) { showError('Could not read file: ' + res.error); return; }
 
-  state.editorContent  = res.content;
+  state.editorContent = res.content;
 
-  renderMarkdown(api.parseMarkdown(res.content));
+  if (filePath.toLowerCase().endsWith('.json')) {
+    await openJsonFile(res.content);
+  } else {
+    hideJsonView();
+    renderMarkdown(api.parseMarkdown(res.content));
+  }
+
   updateStatusBar(res);
   updateCtBar();
 }
 
-function renderMarkdown(html) {
+function hideJsonView() {
+  el.jsonView.style.display = 'none';
+}
+
+async function openJsonFile(content) {
   el.welcome.style.display  = 'none';
-  el.mdScroll.style.display = '';
-  el.mdBody.innerHTML       = html;
+  el.mdScroll.style.display = 'none';
+
+  const result = await api.validateJson(content);
+
+  if (result.valid) {
+    renderJsonView(result.formatted);
+    showJsonBanner('valid', '✓ Valid JSON');
+    el.jsonFormatBtn.style.display = content !== result.formatted ? '' : 'none';
+    el.jsonFixBtn.style.display    = 'none';
+
+    el.jsonFormatBtn.onclick = () => {
+      state.editorContent = result.formatted;
+      setDirty(true);
+      renderJsonView(result.formatted);
+      el.jsonFormatBtn.style.display = 'none';
+    };
+  } else if (result.fixed) {
+    renderJsonView(result.fixedContent);
+    showJsonBanner('invalid', `⚠ Invalid JSON — fix available  ·  ${result.error}`);
+    el.jsonFixBtn.style.display    = '';
+    el.jsonFormatBtn.style.display = 'none';
+
+    el.jsonFixBtn.onclick = () => {
+      state.editorContent = result.fixedContent;
+      setDirty(true);
+      renderJsonView(result.fixedContent);
+      showJsonBanner('valid', '✓ Fixed — save to apply');
+      el.jsonFixBtn.style.display    = 'none';
+      el.jsonFormatBtn.style.display = 'none';
+    };
+  } else {
+    renderJsonView(content);
+    showJsonBanner('invalid', `⚠ Invalid JSON  ·  ${result.error}`);
+    el.jsonFixBtn.style.display    = 'none';
+    el.jsonFormatBtn.style.display = 'none';
+  }
+
+  el.jsonView.style.display = '';
+}
+
+function renderJsonView(content) {
+  el.jsonPre.innerHTML = api.highlightJson(content) + '\n';
+}
+
+function showJsonBanner(type, msg) {
+  el.jsonBanner.className = `json-banner ${type}`;
+  el.jsonBannerMsg.textContent = msg;
+  el.jsonBanner.style.display = '';
+}
+
+// ─── JSON editor ──────────────────────────────────────────────────────────────
+function syncJsonHighlight() {
+  el.jsonHighlightPre.innerHTML = api.highlightJson(el.jsonCodeTA.value) + '\n';
+}
+
+function setJsonTbMsg(text, type) {
+  el.jsonTbMsg.textContent = text;
+  el.jsonTbMsg.className = 'json-tb-msg' + (type ? ' ' + type : '');
+}
+
+function jsonInsertAtCursor(before, after = '') {
+  const ta    = el.jsonCodeTA;
+  const start = ta.selectionStart;
+  const end   = ta.selectionEnd;
+  const sel   = ta.value.slice(start, end);
+  const replacement = before + sel + after;
+  ta.setRangeText(replacement, start, end, 'end');
+  ta.dispatchEvent(new Event('input'));
+  ta.focus();
+}
+
+function setupJsonEditor() {
+  // Keep highlight pre in sync with textarea content and scroll
+  el.jsonCodeTA.addEventListener('input', () => {
+    syncJsonHighlight();
+    setJsonTbMsg('');
+    setDirty(true);
+  });
+
+  el.jsonCodeTA.addEventListener('scroll', () => {
+    el.jsonHighlightPre.scrollTop  = el.jsonCodeTA.scrollTop;
+    el.jsonHighlightPre.scrollLeft = el.jsonCodeTA.scrollLeft;
+  });
+
+  // Tab key → two spaces
+  el.jsonCodeTA.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const s = el.jsonCodeTA.selectionStart;
+    el.jsonCodeTA.setRangeText('  ', s, el.jsonCodeTA.selectionEnd, 'end');
+    el.jsonCodeTA.dispatchEvent(new Event('input'));
+  });
+
+  // Toolbar: Format
+  $('jbtn-format').addEventListener('click', async () => {
+    const content = el.jsonCodeTA.value;
+    const result  = await api.validateJson(content);
+    if (result.valid) {
+      el.jsonCodeTA.value = result.formatted;
+      syncJsonHighlight();
+      setDirty(true);
+      setJsonTbMsg('Formatted', 'ok');
+    } else {
+      setJsonTbMsg(result.error, 'err');
+    }
+  });
+
+  // Toolbar: Validate
+  $('jbtn-validate').addEventListener('click', async () => {
+    const result = await api.validateJson(el.jsonCodeTA.value);
+    if (result.valid) {
+      setJsonTbMsg('Valid JSON', 'ok');
+    } else {
+      setJsonTbMsg(result.error, 'err');
+    }
+  });
+
+  // Toolbar: Auto-fix
+  $('jbtn-fix').addEventListener('click', async () => {
+    const result = await api.validateJson(el.jsonCodeTA.value);
+    if (result.valid) {
+      setJsonTbMsg('Already valid', 'ok');
+    } else if (result.fixed) {
+      el.jsonCodeTA.value = result.fixedContent;
+      syncJsonHighlight();
+      setDirty(true);
+      setJsonTbMsg('Fixed — check before saving', 'ok');
+    } else {
+      setJsonTbMsg('Could not auto-fix: ' + result.error, 'err');
+    }
+  });
+
+  // Toolbar: + Field
+  $('jbtn-field').addEventListener('click', () => {
+    jsonInsertAtCursor('"key": "value"');
+  });
+
+  // Toolbar: { }
+  $('jbtn-obj').addEventListener('click', () => {
+    const ta    = el.jsonCodeTA;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    if (start === end && ta.value.trim() === '') {
+      ta.value = '{\n  \n}';
+      ta.selectionStart = ta.selectionEnd = 5;
+    } else {
+      jsonInsertAtCursor('{\n  ', '\n}');
+    }
+    ta.dispatchEvent(new Event('input'));
+    ta.focus();
+  });
+
+  // Toolbar: [ ]
+  $('jbtn-arr').addEventListener('click', () => {
+    const ta    = el.jsonCodeTA;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    if (start === end && ta.value.trim() === '') {
+      ta.value = '[\n  \n]';
+      ta.selectionStart = ta.selectionEnd = 5;
+    } else {
+      jsonInsertAtCursor('[\n  ', '\n]');
+    }
+    ta.dispatchEvent(new Event('input'));
+    ta.focus();
+  });
+}
+
+function renderMarkdown(html) {
+  el.welcome.style.display        = 'none';
+  el.jsonView.style.display       = 'none';
+  el.jsonEditorWrap.style.display = 'none';
+  el.mdScroll.style.display       = '';
+  el.mdBody.innerHTML             = html;
 
   renderMermaidDiagrams();
+
+  // Wrap tables in a scroll container so wide tables scroll rather than squeeze columns
+  el.mdBody.querySelectorAll('table').forEach(table => {
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    table.parentNode.insertBefore(wrap, table);
+    wrap.appendChild(table);
+  });
 
   // Copy buttons for code blocks
   el.mdBody.querySelectorAll('.copy-btn').forEach(btn => {
@@ -522,35 +723,65 @@ function renderMarkdown(html) {
 }
 
 // ─── Edit mode ────────────────────────────────────────────────────────────────
+function isJsonFile() {
+  return state.currentFile && state.currentFile.toLowerCase().endsWith('.json');
+}
+
 function enterEditMode() {
   state.isEditing = true;
 
-  el.mdScroll.style.display   = 'none';
-  el.editorWrap.style.display = '';
-  el.mdEditor.value           = state.editorContent;
-  el.mdEditor.focus();
+  el.mdScroll.style.display       = 'none';
+  el.jsonView.style.display       = 'none';
+
+  if (isJsonFile()) {
+    el.editorWrap.style.display     = 'none';
+    el.jsonEditorWrap.style.display = '';
+    setJsonTbMsg('');
+    api.validateJson(state.editorContent).then(result => {
+      const content = result.valid ? result.formatted : state.editorContent;
+      el.jsonCodeTA.value = content;
+      if (result.valid && content !== state.editorContent) {
+        state.editorContent = content;
+        setDirty(true);
+      }
+      syncJsonHighlight();
+      el.jsonCodeTA.focus();
+    });
+    syncJsonHighlight();
+  } else {
+    el.jsonEditorWrap.style.display = 'none';
+    el.editorWrap.style.display     = '';
+    el.mdEditor.value               = state.editorContent;
+    el.mdEditor.focus();
+    setupEditorTabKey();
+  }
 
   el.btnEditMode.style.display  = 'none';
   el.btnSave.style.display      = '';
   el.btnViewMode.style.display  = '';
 
   updateCtBar();
-  setupEditorTabKey();
 }
 
-function enterViewMode(andSave = false) {
+async function enterViewMode(andSave = false) {
   if (andSave && state.isDirty) saveCurrentFile();
 
-  // Sync content back
-  if (state.isEditing) state.editorContent = el.mdEditor.value;
+  // Sync content back from whichever editor was active
+  if (state.isEditing) {
+    state.editorContent = isJsonFile() ? el.jsonCodeTA.value : el.mdEditor.value;
+  }
 
   state.isEditing = false;
 
-  // Re-render if content changed
-  renderMarkdown(api.parseMarkdown(state.editorContent));
+  el.editorWrap.style.display     = 'none';
+  el.jsonEditorWrap.style.display = 'none';
 
-  el.editorWrap.style.display = 'none';
-  el.mdScroll.style.display   = '';
+  if (state.currentFile && state.currentFile.toLowerCase().endsWith('.json')) {
+    await openJsonFile(state.editorContent);
+  } else {
+    renderMarkdown(api.parseMarkdown(state.editorContent));
+    el.mdScroll.style.display = '';
+  }
 
   el.btnEditMode.style.display  = '';
   el.btnSave.style.display      = 'none';
@@ -566,7 +797,7 @@ function toggleEditView() {
 
 async function saveCurrentFile() {
   if (!state.currentFile) return;
-  const content = el.mdEditor.value;
+  const content = isJsonFile() ? el.jsonCodeTA.value : el.mdEditor.value;
   const res     = await api.writeFile(state.currentFile, content);
   if (res.success) {
     state.editorContent = content;
@@ -850,8 +1081,10 @@ function updateStatusBar(res) {
 }
 
 function showError(msg) {
-  el.welcome.style.display  = 'none';
-  el.mdScroll.style.display = '';
+  el.welcome.style.display        = 'none';
+  el.jsonView.style.display       = 'none';
+  el.jsonEditorWrap.style.display = 'none';
+  el.mdScroll.style.display       = '';
   el.mdBody.innerHTML = `<div style="padding:32px;color:var(--text-muted)">⚠️ ${escapeHtml(String(msg))}</div>`;
 }
 
@@ -963,6 +1196,7 @@ function bindEvents() {
   setupSidebarResize();
   setupEdgePanelResize();
   setupKeyboard();
+  setupJsonEditor();
 
   api.onChromeReadingList(async items => {
     if (!state.currentFolder) {
@@ -1000,6 +1234,8 @@ function fileIconPath(name) {
   const ext = name.split('.').pop().toLowerCase();
   if (['md', 'markdown', 'mdown', 'mkd'].includes(ext))
     return `<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 15V9l2 2 2-2v6"/><path d="M14 13l2 2 2-2"/>`;
+  if (ext === 'json')
+    return `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><path d="M10 13c0-1 .5-1.5 1.5-1.5S13 12 13 13s-.5 1.5-1.5 1.5S10 14 10 13z"/><path d="M9 17c-.5 0-1-.4-1-1v-1"/>`;
   return `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/>`;
 }
 

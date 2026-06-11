@@ -185,6 +185,40 @@
                   placeholder="Write markdown here…"></textarea>
       </div>
 
+      <!-- JSON editor -->
+      <div class="json-editor-wrap" id="json-editor-wrap" style="display:none">
+        <div class="json-editor-toolbar" id="json-editor-toolbar">
+          <button class="json-tb-btn" id="jbtn-format"   title="Format JSON">Format</button>
+          <button class="json-tb-btn" id="jbtn-validate" title="Validate JSON">Validate</button>
+          <button class="json-tb-btn" id="jbtn-fix"      title="Auto-fix common issues">Auto-fix</button>
+          <span class="json-tb-sep"></span>
+          <button class="json-tb-btn" id="jbtn-field"    title='Insert "key": "value" at cursor'>+ Field</button>
+          <button class="json-tb-btn" id="jbtn-obj"      title="Wrap selection in { }">{ }</button>
+          <button class="json-tb-btn" id="jbtn-arr"      title="Wrap selection in [ ]">[ ]</button>
+          <span class="json-tb-sep"></span>
+          <span class="json-tb-msg" id="json-tb-msg"></span>
+        </div>
+        <div class="json-code-editor" id="json-code-editor">
+          <pre class="json-highlight-pre hljs" id="json-highlight-pre" aria-hidden="true"></pre>
+          <textarea class="json-code-textarea" id="json-code-textarea"
+                    spellcheck="false"
+                    autocorrect="off"
+                    autocapitalize="off"></textarea>
+        </div>
+      </div>
+
+      <!-- JSON viewer -->
+      <div class="json-view" id="json-view" style="display:none; flex-direction:column; padding:0">
+        <div class="json-banner" id="json-banner" style="display:none">
+          <span class="json-banner-msg" id="json-banner-msg"></span>
+          <button class="json-banner-btn" id="json-fix-btn" style="display:none">Auto-fix</button>
+          <button class="json-banner-btn" id="json-format-btn" style="display:none">Format</button>
+        </div>
+        <div style="flex:1;overflow:auto;padding:20px 24px 56px">
+          <pre id="json-pre" class="hljs" style="margin:0;font-family:var(--font-mono);font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-all;background:transparent"></pre>
+        </div>
+      </div>
+
     </main>
   </div>
 

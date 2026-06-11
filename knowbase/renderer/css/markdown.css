@@ -207,29 +207,34 @@
 }
 
 /* ── Tables ──────────────────────────────────────────────────────────────── */
+.markdown-body .table-wrap {
+  overflow-x: auto;
+  margin: 1.2em 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-solid) transparent;
+}
+.markdown-body .table-wrap::-webkit-scrollbar { height: 6px; }
+.markdown-body .table-wrap::-webkit-scrollbar-thumb { background: var(--border-solid); border-radius: 3px; }
 .markdown-body table {
   border-collapse: collapse;
-  width: 100%;
-  margin: 1.2em 0;
+  width: auto;
+  margin: 0;
   font-size: 0.925em;
-  overflow-x: auto;
-  display: block;
 }
 .markdown-body th,
 .markdown-body td {
-  padding: 7px 12px;
+  padding: 7px 14px;
   border: 1px solid var(--border-solid);
   text-align: left;
+  min-width: 60px;
   word-break: break-word;
-}
-.markdown-body td:last-child,
-.markdown-body th:last-child {
-  white-space: nowrap;
+  white-space: normal;
 }
 .markdown-body th {
   background: var(--bg-code);
   font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
 }
 .markdown-body tr:nth-child(even) { background: var(--bg-code); }
 .markdown-body tr:hover td { background: var(--bg-hover); }

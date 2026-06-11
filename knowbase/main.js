@@ -7,6 +7,7 @@ const fs   = require('fs');
 const http = require('http');
 
 const READING_LIST_PORT = 57420;
+const { collectBookmarkLinks, buildFolderList, buildBookmarkMarkdown, readDirTree, MARKDOWN_EXT, attemptJsonFix } = require('./lib/utils');
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CFG = {
@@ -16,11 +17,6 @@ const CFG = {
   SLIDE_DURATION: 220,   // ms
   TAB_WIDTH:       40,   // collapsed-to-tab strip width
 };
-
-const MARKDOWN_EXT = new Set([
-  '.md', '.markdown', '.mdown', '.mkd', '.mkdn',
-  '.mdwn', '.mdtxt', '.mdtext', '.txt'
-]);
 
 
 const CHROME_BOOKMARKS_CANDIDATES = [
@@ -37,35 +33,6 @@ function findChromeBookmarksFile() {
   return CHROME_BOOKMARKS_CANDIDATES.find(p => fs.existsSync(p)) || null;
 }
 
-function collectBookmarkLinks(node, links) {
-  if (!node || typeof node !== 'object') return;
-  if (node.type === 'url' && node.url) {
-    links.push({ title: node.name || node.url, url: node.url });
-    return;
-  }
-  if (Array.isArray(node.children)) {
-    node.children.forEach(child => collectBookmarkLinks(child, links));
-  }
-}
-
-function buildFolderList(node, displayPath, map) {
-  if (!Array.isArray(node.children)) return;
-  node.children.forEach(child => {
-    if (child.type !== 'folder' && !Array.isArray(child.children)) return;
-    const childPath = displayPath ? `${displayPath} › ${child.name}` : child.name;
-    map.set(String(map.size), { node: child, name: child.name, displayPath: childPath });
-    buildFolderList(child, childPath, map);
-  });
-}
-
-function buildBookmarkMarkdown(links, title) {
-  const lines = [`# ${title}`, ''];
-  for (const item of links) {
-    lines.push(`- [${item.title}](${item.url})`);
-  }
-  return lines.join('\n') + '\n';
-}
-
 let bookmarkFolderCache = null;
 
 // ─── State ────────────────────────────────────────────────────────────────────
@@ -74,6 +41,7 @@ let tray;
 let isPanelOpen       = true;
 let isAnimating       = false;
 let isTabMode         = false;  // collapsed to thin strip
+let isQuitting        = false;
 let configCache       = null;
 let activeDisplayId   = null;   // null = always use primary
 
@@ -119,6 +87,16 @@ async function createWindow() {
 
   mainWindow = new BrowserWindow(winOpts);
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      isQuitting = true;
+      if (tray) tray.destroy();
+      app.quit();
+    }
+  });
+
+  mainWindow.on('closed', () => { mainWindow = null; });
 
   // Restore last open folder on ready
   mainWindow.webContents.on('did-finish-load', () => {
@@ -201,6 +179,20 @@ ipcMain.handle('read-file', async (_, filePath) => {
     return { success: true, content, filePath, size: stat.size, modified: stat.mtime.toISOString() };
   } catch (e) {
     return { success: false, error: e.message };
+  }
+});
+
+ipcMain.handle('validate-json', (_, content) => {
+  try {
+    const parsed = JSON.parse(content);
+    return { valid: true, formatted: JSON.stringify(parsed, null, 2) };
+  } catch (originalErr) {
+    const { result } = attemptJsonFix(content);
+    try {
+      const parsed = JSON.parse(result);
+      return { valid: false, fixed: true, fixedContent: JSON.stringify(parsed, null, 2), error: originalErr.message };
+    } catch (_) {}
+    return { valid: false, fixed: false, error: originalErr.message };
   }
 });
 
@@ -320,7 +312,11 @@ ipcMain.handle('rename-file', async (_, oldPath, newPath) => {
 });
 ipcMain.handle('toggle-panel',  ()          => togglePanel());
 ipcMain.handle('hide-panel',    ()          => { if (isPanelOpen) slideOut(); });
-ipcMain.handle('quit-app',      ()          => app.quit());
+ipcMain.handle('quit-app',      ()          => {
+  isQuitting = true;
+  if (tray) { tray.destroy(); tray = null; }
+  app.quit();
+});
 
 ipcMain.handle('collapse-to-tab', () => {
   if (isTabMode) return;
@@ -386,33 +382,6 @@ ipcMain.on('resize-window', (_, newWidth) => {
 });
 
 // ─── File system ─────────────────────────────────────────────────────────────
-function readDirTree(dirPath, depth = 0) {
-  if (depth > 6) return [];
-  let items;
-  try { items = fs.readdirSync(dirPath); } catch (_) { return []; }
-
-  const result = [];
-  for (const name of items) {
-    if (name.startsWith('.') || name === 'node_modules') continue;
-    const full = path.join(dirPath, name);
-    let stat;
-    try { stat = fs.statSync(full); } catch (_) { continue; }
-
-    if (stat.isDirectory()) {
-      const children = readDirTree(full, depth + 1);
-      result.push({ type: 'directory', name, path: full, children });
-    } else if (MARKDOWN_EXT.has(path.extname(name).toLowerCase())) {
-      result.push({ type: 'file', name, path: full, size: stat.size, modified: stat.mtime.toISOString() });
-    }
-  }
-
-  result.sort((a, b) => {
-    if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
-    return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-  });
-  return result;
-}
-
 // ─── Config ──────────────────────────────────────────────────────────────────
 function configPath() { return path.join(app.getPath('userData'), 'config.json'); }
 
@@ -434,6 +403,19 @@ function saveConfig(updates) {
     fs.writeFileSync(configPath(), JSON.stringify(configCache, null, 2), 'utf-8');
   } catch (e) { console.error('Config save failed:', e.message); }
 }
+
+// ─── Single-instance lock ────────────────────────────────────────────────────
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  }
+});
 
 // ─── App lifecycle ───────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
@@ -474,6 +456,9 @@ app.whenReady().then(async () => {
         res.writeHead(404); res.end();
       }
     });
+    server.on('error', e => {
+      if (e.code !== 'EADDRINUSE') console.error('Reading list server error:', e.message);
+    });
     server.listen(READING_LIST_PORT, '127.0.0.1');
   } catch (_) { /* server not critical */ }
 
@@ -497,7 +482,18 @@ app.whenReady().then(async () => {
   } catch (_) { /* tray not critical */ }
 });
 
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+app.on('window-all-closed', () => {
+  isQuitting = true;
+  if (tray) {
+    tray.destroy();
+    tray = null;
+  }
+  try {
+    app.quit();
+  } finally {
+    try { process.exit(0); } catch (_) {}
+  }
+});
 app.on('will-quit',         () => globalShortcut.unregisterAll());
 app.on('activate', () => {
   if (!mainWindow || mainWindow.isDestroyed()) createWindow();

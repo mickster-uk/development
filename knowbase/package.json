@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -14,7 +14,9 @@
     "prebuild:win": "npm version patch --no-git-tag-version",
     "build:win": "electron-builder --win --publish never",
     "prebuild:linux": "npm version patch --no-git-tag-version",
-    "build:linux": "electron-builder --linux --publish never"
+    "build:linux": "electron-builder --linux --publish never",
+    "test": "jest --testPathPatterns=lib/",
+    "test:ci": "jest --testPathPatterns=lib/ --ci --json --outputFile=../../../Documents/knowbase/apps/knowbase/tests/unit/results.json"
   },
   "keywords": [
     "electron",
@@ -26,6 +28,7 @@
   "devDependencies": {
     "electron": "^42.3.0",
     "electron-builder": "^26.8.1",
+    "jest": "^30.4.2",
     "playwright-core": "^1.60.0",
     "sharp": "^0.34.5"
   },

@@ -151,6 +151,18 @@ contextBridge.exposeInMainWorld('api', {
   // Markdown parsing (runs in Node context)
   parseMarkdown: (md) => marked.parse(md),
 
+  // JSON validation + auto-fix
+  validateJson: (content) => ipcRenderer.invoke('validate-json', content),
+
+  // Syntax highlight a JSON string, returns HTML
+  highlightJson: (code) => {
+    try {
+      return hljs.highlight(code, { language: 'json' }).value;
+    } catch (_) {
+      return code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  },
+
   // Panel collapse / expand
   collapseToTab:  () => ipcRenderer.invoke('collapse-to-tab'),
   expandFromTab:  () => ipcRenderer.invoke('expand-from-tab'),
