@@ -7,6 +7,7 @@
     "start": "ELECTRON_RUN_AS_NODE= electron .",
     "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
     "build": "electron-builder",
+    "postbuild": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && rm -f \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\"",
     "test": "jest --testPathPatterns=lib/",
     "test:ci": "jest --testPathPatterns=lib/ --ci --json --outputFile=../../../Documents/knowbase/apps/promptbase/tests/unit/results.json"
   },

@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -9,8 +9,10 @@
     "build-icons": "node scripts/generate-icons.js",
     "prebuild": "npm version patch --no-git-tag-version",
     "build": "electron-builder --publish never",
+    "postbuild": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && rm -f \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\"",
     "prebuild:mac": "npm version patch --no-git-tag-version",
     "build:mac": "electron-builder --mac --publish never",
+    "postbuild:mac": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && rm -f \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\"",
     "prebuild:win": "npm version patch --no-git-tag-version",
     "build:win": "electron-builder --win --publish never",
     "prebuild:linux": "npm version patch --no-git-tag-version",
