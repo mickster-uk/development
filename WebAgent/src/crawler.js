@@ -68,4 +68,4 @@ async function crawl(rootUrl, { maxDepth = 2, maxPages = 50, onPage } = {}) {
   return results;
 }
 
-module.exports = { crawl };
+module.exports = { crawl, extractInternalLinks };

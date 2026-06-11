@@ -77,4 +77,4 @@ async function scrape(url) {
   }
 }
 
-module.exports = { scrape };
+module.exports = { scrape, parseContent };

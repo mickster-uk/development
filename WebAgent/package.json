@@ -6,16 +6,23 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "install-browser": "npx playwright install chromium"
+    "install-browser": "npx playwright install chromium",
+    "test": "jest --testPathPatterns=src/",
+    "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/webagent/tests/unit/results.json",
+    "perf": "k6 run tests/performance/api.k6.js",
+    "perf:ci": "k6 run --out json=../../../Documents/knowbase/apps/webagent/tests/performance/results.json tests/performance/api.k6.js"
   },
   "dependencies": {
-    "@mozilla/readability": "^0.5.0",
+    "@mozilla/readability": "0.6.0",
     "axios": "^1.7.9",
     "cheerio": "^1.0.0",
     "express": "^4.21.2",
     "jsdom": "^25.0.1",
-    "node-cron": "^3.0.3",
+    "node-cron": "4.0.0",
     "playwright": "^1.50.0",
     "turndown": "^7.2.0"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2"
   }
 }
