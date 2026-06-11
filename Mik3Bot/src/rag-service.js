@@ -100,6 +100,9 @@ class RAGService {
     // Keyword fallback — catches proper nouns and compound merchant names that
     // semantic models score poorly (e.g. "HollywoodBowlGroup" as one token).
     // Splits camelCase/PascalCase so "HollywoodBowlGroup" → ["hollywood","bowl","group"].
+    // Scored so exact matches (e.g. the actual transaction row) rank above documents
+    // that merely mention the word in passing (e.g. a saved note about the problem).
+    const queryLower = query.toLowerCase();
     const splitTerms = query
       .replace(/([a-z])([A-Z])/g, '$1 $2')
       .toLowerCase()
@@ -109,7 +112,18 @@ class RAGService {
     const seenTexts = new Set(scored.map(c => c.text));
     const keyword = this.chunks
       .filter(c => !seenTexts.has(c.text))
-      .filter(c => splitTerms.some(t => c.text.toLowerCase().includes(t)))
+      .map(c => {
+        const tl = c.text.toLowerCase();
+        const exactScore = tl.includes(queryLower) ? 3 : 0;
+        const termScore = splitTerms.filter(t => tl.includes(t)).length;
+        const rawScore = exactScore + termScore;
+        // Normalise by chunk length: a short focused row containing the exact
+        // merchant name ranks above a long document that mentions it in passing.
+        const keyScore = rawScore / Math.log10(c.text.length + 10);
+        return { text: c.text, source: c.source, keyScore };
+      })
+      .filter(c => c.keyScore > 0)
+      .sort((a, b) => b.keyScore - a.keyScore)
       .slice(0, topK);
 
     const combined = [...scored, ...keyword];
@@ -167,12 +181,18 @@ class RAGService {
     }
 
     // Second pass: split still-oversized chunks line by line (handles big tables, long lists)
+    // Table data rows are emitted individually so each transaction becomes its own chunk.
+    const isTableRow = l => l.trim().startsWith('|') && !/^\s*\|[\s:\-|]+\|\s*$/.test(l);
     const result = [];
     for (const chunk of chunks) {
       if (chunk.text.length <= CHUNK_MAX) { result.push(chunk); continue; }
       let group = '';
       for (const line of chunk.text.split('\n')) {
-        if (group && (group + '\n' + line).length > CHUNK_MAX) {
+        if (isTableRow(line)) {
+          if (group.trim().length >= MIN_CHUNK_LEN) result.push({ text: group.trim(), source: chunk.source });
+          group = '';
+          if (line.trim().length >= MIN_CHUNK_LEN) result.push({ text: line.trim(), source: chunk.source });
+        } else if (group && (group + '\n' + line).length > CHUNK_MAX) {
           if (group.trim().length >= MIN_CHUNK_LEN) result.push({ text: group.trim(), source: chunk.source });
           group = line;
         } else {
