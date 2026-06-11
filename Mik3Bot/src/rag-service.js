@@ -210,21 +210,69 @@ class RAGService {
     };
 
     const headers = parseRow(lines[0]);
-    const chunks = [];
-    const ROWS_PER_CHUNK = 20;
-
-    for (let i = 1; i < lines.length; i += ROWS_PER_CHUNK) {
-      const block = [];
-      for (let j = i; j < Math.min(i + ROWS_PER_CHUNK, lines.length); j++) {
-        const vals = parseRow(lines[j]);
-        const row = headers.map((h, k) => `${h}: ${vals[k] ?? ''}`).join(', ');
-        block.push(row);
+    const lh = headers.map(h => h.toLowerCase().trim());
+    const colIdx = (...names) => {
+      for (const n of names) {
+        const i = lh.findIndex(h => h === n || h.includes(n));
+        if (i >= 0) return i;
       }
-      const chunkText = block.join('\n');
-      if (chunkText.length >= MIN_CHUNK_LEN) chunks.push({ text: chunkText, source });
+      return -1;
+    };
+
+    const dateIdx   = colIdx('date', 'transaction date', 'value date', 'posting date');
+    const descIdx   = colIdx('description', 'merchant', 'vendor', 'payee', 'narrative', 'details', 'reference', 'memo');
+    const amtIdx    = colIdx('amount', 'sum', 'value');
+    const debitIdx  = colIdx('debit', 'withdrawal', 'out');
+    const creditIdx = colIdx('credit', 'deposit', 'in');
+
+    const parseAmt = (str) => str ? parseFloat(str.replace(/[£$€,\s]/g, '')) : NaN;
+
+    const rows = lines.slice(1).map(l => parseRow(l));
+
+    // One chunk per transaction row — focused embedding for merchant/vendor search
+    const rowChunks = rows
+      .map(vals => ({ text: headers.map((h, k) => `${h}: ${vals[k] ?? ''}`).join(', '), source }))
+      .filter(c => c.text.length >= MIN_CHUNK_LEN);
+
+    // Daily summary chunks — one per date for "what did I spend on X" queries
+    if (dateIdx < 0 || descIdx < 0 || (amtIdx < 0 && debitIdx < 0)) return rowChunks;
+
+    const byDate = new Map();
+    for (const vals of rows) {
+      const date = (vals[dateIdx] || '').trim();
+      if (date) {
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push(vals);
+      }
     }
 
-    return chunks;
+    const dailyChunks = [];
+    for (const [date, dayRows] of byDate) {
+      let net = 0;
+      const txLines = [];
+      for (const vals of dayRows) {
+        const desc = (vals[descIdx] || '').trim() || '(no description)';
+        let rowAmt = NaN;
+        if (amtIdx >= 0) {
+          rowAmt = parseAmt(vals[amtIdx]);
+        } else {
+          const d = parseAmt(vals[debitIdx]);
+          const c = parseAmt(vals[creditIdx >= 0 ? creditIdx : -1]);
+          if (!isNaN(d)) rowAmt = -Math.abs(d);
+          else if (!isNaN(c)) rowAmt = Math.abs(c);
+        }
+        if (!isNaN(rowAmt)) net += rowAmt;
+        const amtStr = amtIdx >= 0 ? (vals[amtIdx] || '') : (!isNaN(rowAmt) ? rowAmt.toFixed(2) : '');
+        txLines.push(`  ${desc}: ${amtStr}`);
+      }
+      const netLabel = net <= 0
+        ? `spent £${Math.abs(net).toFixed(2)}`
+        : `received £${net.toFixed(2)}`;
+      const text = `${date} — ${dayRows.length} transaction${dayRows.length !== 1 ? 's' : ''}, ${netLabel}\n${txLines.join('\n')}`;
+      if (text.length >= MIN_CHUNK_LEN) dailyChunks.push({ text, source });
+    }
+
+    return [...rowChunks, ...dailyChunks];
   }
 
   async _embed(text) {
