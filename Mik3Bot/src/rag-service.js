@@ -7,7 +7,7 @@ const EMBEDDING_MODEL = 'nomic-embed-text';
 const CHUNK_MAX = 600;
 const MIN_CHUNK_LEN = 40;
 const SIMILARITY_THRESHOLD = 0.3;
-const DEFAULT_TOP_K = 3;
+const DEFAULT_TOP_K = 5;
 
 class RAGService {
   constructor(knowledgePath, endpoint) {
