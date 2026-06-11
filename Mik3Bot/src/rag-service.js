@@ -47,7 +47,9 @@ class RAGService {
       const source = path.relative(this.knowledgePath, filePath);
       const rawChunks = filePath.endsWith('.json')
         ? this._chunkJSON(content, source)
-        : this._chunkMarkdown(content, source);
+        : filePath.endsWith('.csv')
+          ? this._chunkCSV(content, source)
+          : this._chunkMarkdown(content, source);
 
       for (const chunk of rawChunks) {
         const hash = crypto.createHash('sha256').update(chunk.text).digest('hex');
@@ -119,7 +121,7 @@ class RAGService {
         if (entry.name.startsWith('.')) continue;
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) walk(full);
-        else if (/\.(md|json)$/i.test(entry.name)) results.push(full);
+        else if (/\.(md|json|csv)$/i.test(entry.name)) results.push(full);
       }
     };
     walk(this.knowledgePath);
@@ -187,6 +189,42 @@ class RAGService {
       const trimmed = text.trim().substring(0, 1000);
       return trimmed.length >= MIN_CHUNK_LEN ? [{ text: trimmed, source }] : [];
     }
+  }
+
+  _chunkCSV(csvText, source) {
+    const lines = csvText.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    const parseRow = (line) => {
+      const cells = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') { inQuotes = !inQuotes; continue; }
+        if (ch === ',' && !inQuotes) { cells.push(current.trim()); current = ''; continue; }
+        current += ch;
+      }
+      cells.push(current.trim());
+      return cells;
+    };
+
+    const headers = parseRow(lines[0]);
+    const chunks = [];
+    const ROWS_PER_CHUNK = 20;
+
+    for (let i = 1; i < lines.length; i += ROWS_PER_CHUNK) {
+      const block = [];
+      for (let j = i; j < Math.min(i + ROWS_PER_CHUNK, lines.length); j++) {
+        const vals = parseRow(lines[j]);
+        const row = headers.map((h, k) => `${h}: ${vals[k] ?? ''}`).join(', ');
+        block.push(row);
+      }
+      const chunkText = block.join('\n');
+      if (chunkText.length >= MIN_CHUNK_LEN) chunks.push({ text: chunkText, source });
+    }
+
+    return chunks;
   }
 
   async _embed(text) {

@@ -81,7 +81,7 @@ function createWindow() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    resizable: false,
+    resizable: true,
     skipTaskbar: false,
     webPreferences: {
       nodeIntegration: false,
@@ -331,9 +331,8 @@ ipcMain.handle('call-llama', async (event, { endpoint, apiKey, model, prompt, me
 // ── Window management IPC ─────────────────────────────────────────────────
 ipcMain.on('resize-window', (event, { height }) => {
   if (mainWindow) {
-    const wa = getWorkArea();
     const bounds = mainWindow.getBounds();
-    mainWindow.setBounds({ x: wa.x + wa.width - PANEL_WIDTH, y: bounds.y, width: PANEL_WIDTH, height }, true);
+    mainWindow.setBounds({ ...bounds, height }, true);
   }
 });
 
