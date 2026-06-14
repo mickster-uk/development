@@ -7,7 +7,9 @@ const EMBEDDING_MODEL = 'nomic-embed-text';
 const CHUNK_MAX = 600;
 const MIN_CHUNK_LEN = 40;
 const SIMILARITY_THRESHOLD = 0.3;
-const DEFAULT_TOP_K = 5;
+const DEFAULT_TOP_K = 10;
+const KEYWORD_CAP = 50;
+const EMBED_BATCH = 32;
 
 class RAGService {
   constructor(knowledgePath, endpoint) {
@@ -35,6 +37,7 @@ class RAGService {
       return { chunkCount: 0, fileCount: 0 };
     }
 
+    const allRawChunks = [];
     for (const filePath of files) {
       let content;
       try {
@@ -43,27 +46,47 @@ class RAGService {
         console.error(`RAG: cannot read ${filePath}:`, e.message);
         continue;
       }
-
       const source = path.relative(this.knowledgePath, filePath);
       const rawChunks = filePath.endsWith('.json')
         ? this._chunkJSON(content, source)
         : filePath.endsWith('.csv')
           ? this._chunkCSV(content, source)
           : this._chunkMarkdown(content, source);
+      allRawChunks.push(...rawChunks);
+    }
 
-      for (const chunk of rawChunks) {
-        const hash = crypto.createHash('sha256').update(chunk.text).digest('hex');
-        if (cache[hash]) {
-          newChunks.push({ text: chunk.text, source: chunk.source, embedding: cache[hash] });
-          newCache[hash] = cache[hash];
-        } else {
+    const toEmbed = [];
+    for (const chunk of allRawChunks) {
+      const hash = crypto.createHash('sha256').update(chunk.text).digest('hex');
+      if (cache[hash]) {
+        newChunks.push({ text: chunk.text, source: chunk.source, embedding: cache[hash] });
+        newCache[hash] = cache[hash];
+      } else {
+        toEmbed.push({ ...chunk, hash });
+      }
+    }
+
+    for (let i = 0; i < toEmbed.length; i += EMBED_BATCH) {
+      const batch = toEmbed.slice(i, i + EMBED_BATCH);
+      const texts = batch.map(c => c.text.length > CHUNK_MAX * 2 ? c.text.slice(0, CHUNK_MAX * 2) : c.text);
+      try {
+        const embeddings = await this._embedBatch(texts);
+        for (let j = 0; j < batch.length; j++) {
+          if (embeddings[j]) {
+            newChunks.push({ text: batch[j].text, source: batch[j].source, embedding: embeddings[j] });
+            newCache[batch[j].hash] = embeddings[j];
+          }
+        }
+      } catch (e) {
+        for (const chunk of batch) {
           try {
-            const embedding = await this._embed(chunk.text);
+            const safeText = chunk.text.length > CHUNK_MAX * 2 ? chunk.text.slice(0, CHUNK_MAX * 2) : chunk.text;
+            const embedding = await this._embed(safeText);
             newChunks.push({ text: chunk.text, source: chunk.source, embedding });
-            newCache[hash] = embedding;
-          } catch (e) {
-            const detail = e.response?.data?.error || e.message;
-            console.error(`RAG: failed to embed chunk from ${source}:`, detail);
+            newCache[chunk.hash] = embedding;
+          } catch (e2) {
+            const detail = e2.response?.data?.error || e2.message;
+            console.error(`RAG: failed to embed chunk from ${chunk.source}:`, detail);
             this.lastError = `Embedding failed: ${detail}`;
           }
         }
@@ -124,7 +147,7 @@ class RAGService {
       })
       .filter(c => c.keyScore > 0)
       .sort((a, b) => b.keyScore - a.keyScore)
-      .slice(0, topK);
+      .slice(0, KEYWORD_CAP);
 
     const combined = [...scored, ...keyword];
     if (combined.length === 0) return '';
@@ -180,15 +203,42 @@ class RAGService {
       if (current.trim().length >= MIN_CHUNK_LEN) chunks.push({ text: current.trim(), source });
     }
 
-    // Second pass: split still-oversized chunks line by line (handles big tables, long lists)
-    // Table data rows are emitted individually so each transaction becomes its own chunk.
-    const isTableRow = l => l.trim().startsWith('|') && !/^\s*\|[\s:\-|]+\|\s*$/.test(l);
+    const isSeparator = l => /^\s*\|[\s:\-|]+\|\s*$/.test(l);
+    const parseCells = l => l.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map(c => c.replace(/\\\|/g, '|').trim());
+    const expandLinks = text => text.replace(/\[([^\]]*)\]\(([^)]+)\)/g, (_, t, u) => {
+      try {
+        const url = new URL(u);
+        const segs = url.pathname.split('/').filter(s => s && !/^\d+$/.test(s)).map(s => s.replace(/-/g, ' '));
+        return `${t} [${[url.hostname, ...segs].join(' ')}]`;
+      } catch { return t; }
+    });
+    const MONTH_ABBR = { jan:'January', feb:'February', mar:'March', apr:'April', may:'May', jun:'June', jul:'July', aug:'August', sep:'September', oct:'October', nov:'November', dec:'December' };
+    const expandMonths = val => val.replace(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b/g, m => MONTH_ABBR[m.toLowerCase()] || m);
+
     const result = [];
     for (const chunk of chunks) {
       if (chunk.text.length <= CHUNK_MAX) { result.push(chunk); continue; }
+
+      const lines = chunk.text.split('\n');
+      const sepIdx = lines.findIndex(isSeparator);
+
+      if (sepIdx > 0 && lines[sepIdx - 1].trim().startsWith('|')) {
+        const headers = parseCells(lines[sepIdx - 1]);
+        const preText = lines.slice(0, sepIdx - 1).join('\n').trim();
+        if (preText.length >= MIN_CHUNK_LEN) result.push({ text: preText, source: chunk.source });
+        for (const line of lines.slice(sepIdx + 1)) {
+          if (!line.trim().startsWith('|') || isSeparator(line)) continue;
+          const cells = parseCells(line);
+          const text = headers.map((h, i) => `${h}: ${expandMonths(expandLinks(cells[i] ?? ''))}`).join(', ');
+          if (text.length >= MIN_CHUNK_LEN) result.push({ text, source: chunk.source });
+        }
+        continue;
+      }
+
       let group = '';
-      for (const line of chunk.text.split('\n')) {
-        if (isTableRow(line)) {
+      for (const line of lines) {
+        const isDataRow = line.trim().startsWith('|') && !isSeparator(line);
+        if (isDataRow) {
           if (group.trim().length >= MIN_CHUNK_LEN) result.push({ text: group.trim(), source: chunk.source });
           group = '';
           if (line.trim().length >= MIN_CHUNK_LEN) result.push({ text: line.trim(), source: chunk.source });
@@ -309,6 +359,17 @@ class RAGService {
     }
 
     return [...rowChunks, ...dailyChunks];
+  }
+
+  async _embedBatch(texts) {
+    const response = await axios.post(
+      `${this.endpoint}/api/embed`,
+      { model: EMBEDDING_MODEL, input: texts },
+      { timeout: 120000 }
+    );
+    const embeddings = response.data?.embeddings;
+    if (Array.isArray(embeddings) && embeddings.length === texts.length) return embeddings;
+    throw new Error('Incomplete batch embedding response');
   }
 
   async _embed(text) {

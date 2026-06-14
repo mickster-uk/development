@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {

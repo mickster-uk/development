@@ -1207,16 +1207,27 @@ function bindEvents() {
       showError('Open a folder in Knowbase first, then export from the Chrome extension.');
       return;
     }
-    const lines = ['# Reading List', '', '| Title | Date Added |', '|-------|------------|'];
-    for (const item of items) {
-      const ts = item.creationTime;
-      const d = ts > 1e16 ? new Date(ts / 1e6)   // nanoseconds
-              : ts > 1e13 ? new Date(ts / 1e3)    // microseconds
-              : ts > 1e10 ? new Date(ts)           // milliseconds
-              :             new Date(ts * 1e3);    // seconds
-      const date = `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
+    const sorted = [...items].sort((a, b) => b.creationTime - a.creationTime);
+    const toDate = (ts, sep = '-') => {
+      const d = ts > 1e16 ? new Date(ts / 1e6)
+              : ts > 1e13 ? new Date(ts / 1e3)
+              : ts > 1e10 ? new Date(ts)
+              :             new Date(ts * 1e3);
+      return `${String(d.getDate()).padStart(2,'0')}${sep}${String(d.getMonth()+1).padStart(2,'0')}${sep}${d.getFullYear()}`;
+    };
+    const now = new Date();
+    const exportDate = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+    const lines = [
+      '# Reading List',
+      '',
+      `**${sorted.length} entries · Exported ${exportDate}**`,
+      '',
+      '| Title | Date Added |',
+      '|-------|------------|'
+    ];
+    for (const item of sorted) {
       const title = item.title.replace(/\|/g, '\\|');
-      lines.push(`| [${title}](${item.url}) | ${date} |`);
+      lines.push(`| [${title}](${item.url}) | ${toDate(item.creationTime)} |`);
     }
     const content = lines.join('\n') + '\n';
     const subFolder = state.currentFolder + '/Reading List';

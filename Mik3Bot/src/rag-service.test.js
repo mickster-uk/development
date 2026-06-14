@@ -40,6 +40,43 @@ describe('RAGService._chunkMarkdown', () => {
     const chunks = rag._chunkMarkdown(md, 'multi.md');
     chunks.forEach(c => expect(c.source).toBe('multi.md'));
   });
+
+  test('emits one key:value chunk per table row for oversized markdown tables', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => `| Article ${i} about some interesting topic in tech | 0${(i % 9) + 1}-01-2024 |`);
+    const md = `# Reading List\n\n| Title | Date Added |\n|-------|------------|\n${rows.join('\n')}`;
+    const chunks = rag._chunkMarkdown(md, 'reading.md');
+    expect(chunks.length).toBe(20);
+    expect(chunks[0].text).toMatch(/^Title: Article 0/);
+    expect(chunks[0].text).toContain('Date Added:');
+  });
+
+  test('expands markdown links in table cells to include URL domain and path', () => {
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      `| [Article ${i} about interesting topics](https://example.com/blog/article-${i}-about-interesting-topics) | 01-01-2024 |`
+    );
+    const md = `# Reading List\n\n| Title | Date Added |\n|-------|------------|\n${rows.join('\n')}`;
+    const chunks = rag._chunkMarkdown(md, 'reading.md');
+    expect(chunks[0].text).toContain('example.com');
+    expect(chunks[0].text).toContain('article');
+    expect(chunks[0].text).toContain('interesting topics');
+  });
+
+  test('expands abbreviated months in table cells so date-range keyword queries match', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => `| 0${(i % 9) + 1} Feb 2025 | MERCHANT ${i} description text here | -£10.00 |`);
+    const md = `# Transactions\n\n| Date | Description | Amount |\n|---|---|---:|\n${rows.join('\n')}`;
+    const chunks = rag._chunkMarkdown(md, 'tx.md');
+    expect(chunks[0].text).toContain('February');
+    expect(chunks[0].text).not.toContain('Feb 2025');
+  });
+
+  test('handles escaped pipes in table cells without splitting incorrectly', () => {
+    const rows = Array.from({ length: 20 }, (_, i) => `| Article ${i} with escaped \\| pipe in the title here | 0${(i % 9) + 1}-01-2024 |`);
+    const md = `# Reading List\n\n| Title | Date Added |\n|-------|------------|\n${rows.join('\n')}`;
+    const chunks = rag._chunkMarkdown(md, 'reading.md');
+    expect(chunks.length).toBe(20);
+    expect(chunks[0].text).toContain('|');
+    expect(chunks[0].text).not.toContain('\\|');
+  });
 });
 
 // ── _chunkJSON ────────────────────────────────────────────────────────────────

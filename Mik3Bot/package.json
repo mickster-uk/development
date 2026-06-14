@@ -1,6 +1,6 @@
 {
   "name": "Mik3Bot",
-  "version": "1.10.0",
+  "version": "1.18.0",
   "description": "A minimal desktop AI assistant powered by Llama API",
   "main": "main.js",
   "scripts": {
