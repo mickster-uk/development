@@ -19,6 +19,9 @@
     "electron-builder": "^26.15.3",
     "jest": "^30.4.2"
   },
+  "overrides": {
+    "js-yaml": "^4.3.0"
+  },
   "jest": {
     "testEnvironment": "node",
     "testTimeout": 90000
