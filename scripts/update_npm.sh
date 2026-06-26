@@ -1,0 +1,1 @@
+find . -name "package.json" -not -path "*/node_modules/*" -print0 | xargs -0 -I {} -P 4 sh -c 'cd "$(dirname "{}")" && echo "Installing in $(pwd)..." && npm install'
