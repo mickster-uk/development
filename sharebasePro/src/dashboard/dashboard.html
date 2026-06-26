@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'">
+  <title>SharebasePro</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #161b2e; --surface2: #1a2035; --border: #242840;
+      --text: #e8eaf0; --text2: #6b7280; --text3: #9ba3b5;
+      --buy: #2CA87F; --hold: #E4B43C; --sell: #E4503C; --accent: #5B6FE4;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; height: 100vh; display: flex; flex-direction: column; overflow: hidden; -webkit-app-region: drag; }
+
+    /* ── Header ── */
+    header { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 84px; height: 42px; border-bottom: 1px solid var(--border); flex-shrink: 0; -webkit-app-region: drag; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .app-title { font-size: 13px; font-weight: 700; letter-spacing: 0.2px; }
+    .status-chip { font-size: 11px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; color: var(--text2); max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-right { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
+    .btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.8; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-ghost:hover { border-color: var(--text2); color: var(--text); opacity: 1; }
+    .debug-btn-header { position: relative; }
+    .debug-badge { position: absolute; top: -4px; right: -4px; background: var(--sell); color: white; font-size: 9px; font-weight: 800; border-radius: 8px; padding: 1px 4px; min-width: 16px; text-align: center; display: none; }
+    .debug-badge.visible { display: block; }
+
+    /* Config dropdown */
+    .config-wrap { position: relative; -webkit-app-region: no-drag; }
+    .config-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 6px; background: transparent; border: 1px solid var(--border); color: var(--text2); font-size: 12px; font-weight: 600; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .config-btn:hover { border-color: var(--accent); color: var(--text); }
+    .config-btn svg { width: 13px; height: 13px; fill: currentColor; }
+    .dropdown { position: absolute; top: calc(100% + 6px); right: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 6px; min-width: 190px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 50; display: none; }
+    .dropdown.open { display: block; }
+    .dropdown-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--text3); transition: background 0.1s, color 0.1s; }
+    .dropdown-item:hover { background: var(--surface2); color: var(--text); }
+    .dropdown-item .di-icon { width: 20px; text-align: center; font-size: 14px; }
+    .dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* ── Fetch paused banner ── */
+    .fetch-paused-bar { display: none; align-items: center; gap: 10px; padding: 7px 16px; background: rgba(228,180,60,0.08); border-bottom: 1px solid rgba(228,180,60,0.25); font-size: 12px; color: var(--hold); flex-shrink: 0; -webkit-app-region: no-drag; }
+    .fetch-paused-bar.visible { display: flex; }
+    .fetch-paused-bar strong { font-weight: 700; }
+    .btn-warn { background: rgba(228,180,60,0.2); border: 1px solid rgba(228,180,60,0.4); color: var(--hold); padding: 4px 10px; font-size: 11px; font-weight: 700; border-radius: 6px; cursor: pointer; }
+    .btn-warn:hover { background: rgba(228,180,60,0.3); }
+
+    /* ── Layout ── */
+    .layout { display: flex; flex: 1; overflow: hidden; -webkit-app-region: no-drag; }
+
+    /* ── Sidebar (ranked list) ── */
+    .sidebar { width: 260px; border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+
+    /* Strategy summary */
+    .strategy-summary { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 7px; }
+    .ss-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .ss-pill { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--border); color: var(--text3); background: var(--surface2); }
+    .ss-pill.risk-conservative { border-color: #2CA87F44; color: #2CA87F; }
+    .ss-pill.risk-moderate     { border-color: #E4B43C44; color: #E4B43C; }
+    .ss-pill.risk-aggressive   { border-color: #E4503C44; color: #E4503C; }
+    .ss-stocks { font-size: 11px; color: var(--text2); line-height: 1.5; }
+    .ss-stocks strong { color: var(--text3); font-weight: 600; }
+    .ss-change-btn { background: none; border: 1px solid var(--border); color: var(--text2); font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 12px; cursor: pointer; width: 100%; transition: border-color 0.1s, color 0.1s; }
+    .ss-change-btn:hover { border-color: var(--accent); color: var(--text); }
+
+    .sidebar-header { padding: 10px 14px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text2); display: flex; align-items: center; justify-content: space-between; }
+    .sidebar-filters { display: flex; gap: 4px; padding: 0 10px 8px; }
+    .filter-chip { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text2); transition: all 0.1s; }
+    .filter-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+    /* ── Stock badge grid ── */
+    .stock-list { flex: 1; overflow-y: scroll; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 8px; align-content: start; }
+    .stock-list::-webkit-scrollbar { width: 5px; }
+    .stock-list::-webkit-scrollbar-track { background: transparent; }
+    .stock-list::-webkit-scrollbar-thumb { background: #4a537a; border-radius: 3px; }
+    .stock-badge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 3px; border-radius: 7px; cursor: pointer; border: 1px solid var(--border); background: var(--surface2); transition: border-color 0.1s, background 0.1s; text-align: center; min-height: 58px; }
+    .stock-badge:hover { border-color: var(--accent); background: rgba(91,111,228,0.08); }
+    .stock-badge.active { border-color: var(--accent); background: rgba(91,111,228,0.15); }
+    .stock-badge.sig-buy  { border-top: 2px solid var(--buy); }
+    .stock-badge.sig-hold { border-top: 2px solid var(--hold); }
+    .stock-badge.sig-sell { border-top: 2px solid var(--sell); }
+    .badge-ticker { font-size: 10.5px; font-weight: 800; color: var(--text); line-height: 1.1; word-break: break-all; }
+    .badge-sig { font-size: 8.5px; font-weight: 800; letter-spacing: 0.3px; }
+    .badge-sig.bull { color: var(--buy); } .badge-sig.bear { color: var(--sell); } .badge-sig.neutral { color: var(--text2); }
+    .badge-score { font-size: 9px; color: var(--text2); font-weight: 600; }
+    .badge-star { font-size: 8px; line-height: 1; }
+
+    .signal-badge { display: inline-block; padding: 2px 7px; border-radius: 12px; font-size: 10px; font-weight: 700; }
+    .badge-buy { background: rgba(44,168,127,0.15); color: var(--buy); }
+    .badge-hold { background: rgba(228,180,60,0.15); color: var(--hold); }
+    .badge-sell { background: rgba(228,80,60,0.15); color: var(--sell); }
+
+    /* ── Main panel ── */
+    .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+
+    /* Loading / empty state */
+    .center-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text2); gap: 12px; padding: 40px; }
+    .center-state h2 { font-size: 16px; color: var(--text); }
+    .center-state p { font-size: 13px; text-align: center; max-width: 360px; line-height: 1.6; }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Detail */
+    .detail { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .detail-header { display: flex; align-items: center; gap: 10px; }
+    .detail-ticker { font-size: 22px; font-weight: 800; }
+    .detail-name { font-size: 13px; color: var(--text2); }
+    .detail-score { font-size: 20px; font-weight: 800; margin-left: auto; }
+    .score-bar-bg { height: 4px; background: var(--border); border-radius: 2px; margin: 4px 0 2px; }
+    .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .panel-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 12px; }
+    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+    .chart-label { font-size: 11px; color: var(--text2); margin-bottom: 6px; }
+    canvas { width: 100% !important; }
+    .signals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .signal-row { background: var(--surface2); border-radius: 7px; padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; }
+    .signal-name { font-size: 12px; font-weight: 500; }
+    .signal-val { font-size: 11px; font-weight: 600; }
+    .bull { color: var(--buy); } .bear { color: var(--sell); } .neutral { color: var(--text2); }
+    .fundamentals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .fund-item { background: var(--surface2); border-radius: 7px; padding: 10px; }
+    .fund-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .fund-val { font-size: 15px; font-weight: 700; }
+    .reasoning { font-size: 12px; color: var(--text2); font-style: italic; }
+
+    /* AI Analysis */
+    .ai-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .ai-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .ai-title { font-size: 12px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; }
+    .ai-model { font-size: 10px; color: var(--text2); background: var(--surface2); border-radius: 10px; padding: 2px 8px; }
+    .ai-body { font-size: 13px; line-height: 1.7; color: var(--text3); min-height: 48px; }
+    .ai-body.streaming { color: var(--text); }
+    .ai-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .ai-no-key { font-size: 12px; color: var(--text2); }
+    .ai-no-key a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+    .cursor-blink { display: inline-block; width: 2px; height: 14px; background: var(--accent); margin-left: 2px; animation: blink 0.8s step-end infinite; vertical-align: text-bottom; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* Settings modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.hidden { display: none; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; width: 420px; }
+    .modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .modal p { font-size: 12px; color: var(--text2); margin-bottom: 18px; line-height: 1.5; }
+    .modal label { font-size: 12px; color: var(--text3); display: block; margin-bottom: 6px; }
+    .modal input[type="text"], .modal input[type="password"], .modal input[type="number"] { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 13px; outline: none; font-family: monospace; }
+    .modal input[type="text"], .modal input[type="password"] { width: 100%; }
+    .modal input:focus { border-color: var(--accent); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--border); margin-top: 14px; }
+    .toggle-label { font-size: 12px; color: var(--text3); }
+    .toggle-label small { display: block; font-size: 11px; color: var(--text2); margin-top: 2px; }
+    .toggle { position: relative; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 20px; cursor: pointer; transition: background 0.2s; }
+    .toggle-slider::after { content: ''; position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    .toggle input:checked + .toggle-slider { background: var(--accent); }
+    .toggle input:checked + .toggle-slider::after { transform: translateX(16px); }
+
+    /* ── Debug panel ── */
+    .debug-panel {
+      position: fixed; top: 42px; right: 0; bottom: 0; width: 480px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      display: flex; flex-direction: column; z-index: 40;
+      transform: translateX(100%); transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .debug-panel.open { transform: translateX(0); }
+    .debug-panel-header {
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .debug-panel-title { font-size: 12px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; flex: 1; }
+    .debug-count-badge { font-size: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px; color: var(--text2); }
+    .debug-icon-btn { width: 26px; height: 26px; border-radius: 6px; border: none; background: transparent; color: var(--text2); cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center; }
+    .debug-icon-btn:hover { background: var(--surface2); color: var(--text); }
+    .debug-icon-btn.primary { background: var(--accent); color: white; width: auto; padding: 0 10px; font-size: 11px; font-weight: 600; }
+    .debug-icon-btn.primary:hover { opacity: 0.85; background: var(--accent); color: white; }
+    .debug-entries { flex: 1; overflow-y: scroll; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+    .debug-entries::-webkit-scrollbar { width: 6px; }
+    .debug-entries::-webkit-scrollbar-track { background: transparent; }
+    .debug-entries::-webkit-scrollbar-thumb { background: #4a537a; border-radius: 3px; }
+    .debug-entries::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    .debug-entry { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+    .debug-entry.has-error { border-color: rgba(228,80,60,0.4); }
+    .debug-entry-header { display: flex; align-items: center; gap: 7px; padding: 8px 10px; cursor: pointer; user-select: none; }
+    .debug-entry-header:hover { background: var(--surface2); }
+    .debug-type { font-size: 9px; font-weight: 800; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .debug-type.rapidapi { background: rgba(91,111,228,0.2); color: #818cf8; }
+    .debug-type.finnhub  { background: rgba(99,179,237,0.2); color: #63b3ed; }
+    .debug-type.ollama   { background: rgba(44,168,127,0.2); color: #34d399; }
+    .debug-type.yahoo    { background: rgba(251,146,60,0.2);  color: #fb923c; }
+    .debug-type.error    { background: rgba(228,80,60,0.2); color: var(--sell); }
+    .debug-label { flex: 1; font-size: 11px; color: var(--text3); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .debug-duration { font-size: 10px; color: var(--text2); font-family: monospace; }
+    .debug-error-dot { width: 6px; height: 6px; background: var(--sell); border-radius: 50%; flex-shrink: 0; }
+    .debug-chevron { font-size: 10px; color: var(--text2); transition: transform 0.15s; }
+    .debug-entry.expanded .debug-chevron { transform: rotate(90deg); }
+    .debug-body { display: none; border-top: 1px solid var(--border); }
+    .debug-entry.expanded .debug-body {
+      display: block;
+      max-height: 420px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .debug-body::-webkit-scrollbar { width: 6px; }
+    .debug-body::-webkit-scrollbar-track { background: transparent; }
+    .debug-body::-webkit-scrollbar-thumb { background: #4a537a; border-radius: 3px; }
+    .debug-body::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+    .debug-tabs { display: flex; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+    .debug-tab { padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; }
+    .debug-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .debug-tab-pane { display: none; padding: 8px; }
+    .debug-tab-pane.active { display: block; overflow-x: hidden; }
+    .debug-json-pre {
+      font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+      font-size: 11.5px; line-height: 1.65;
+      white-space: pre;
+      overflow-x: scroll;
+      overflow-y: visible;
+      color: #c9d1e0; background: #0a0d14;
+      border-radius: 6px; padding: 12px; margin: 0;
+      display: block; width: 100%; box-sizing: border-box;
+    }
+    .debug-json-pre::-webkit-scrollbar { height: 6px; }
+    .debug-json-pre::-webkit-scrollbar-track { background: transparent; }
+    .debug-json-pre::-webkit-scrollbar-thumb { background: #2d3352; border-radius: 3px; }
+    .debug-json-pre::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+    .debug-error-msg { font-size: 11px; color: var(--sell); background: rgba(228,80,60,0.08); border-radius: 6px; padding: 8px 10px; font-family: monospace; }
+    /* JSON syntax colours */
+    .j-key  { color: #7dd3fc; }
+    .j-str  { color: #86efac; }
+    .j-num  { color: #fdba74; }
+    .j-bool { color: #c084fc; }
+    .j-null { color: #f87171; }
+
+    /* Debug analysis section */
+    .debug-analysis { border-top: 1px solid var(--border); flex-shrink: 0; max-height: 220px; display: flex; flex-direction: column; }
+    .debug-analysis-header { padding: 8px 12px; display: flex; align-items: center; gap: 6px; }
+    .debug-analysis-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 0.6px; flex: 1; }
+    .debug-analysis-body { font-size: 12px; line-height: 1.7; color: var(--text3); padding: 0 12px 12px; overflow-y: auto; }
+    .debug-analysis-body.streaming { color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-left">
+      <span class="app-title">SharebasePro</span>
+      <span class="status-chip" id="statusChip">Ready</span>
+    </div>
+    <div class="header-right">
+      <div class="debug-btn-header" id="debugBtnWrap" style="display:none">
+        <button class="btn btn-ghost" id="btnOpenDebug" title="Debug Panel">🐛 Debug</button>
+        <span class="debug-badge" id="debugBadge"></span>
+      </div>
+      <button class="btn btn-primary" id="btnFetch">↻ Refresh</button>
+      <div class="config-wrap">
+        <button class="config-btn" id="btnConfig">
+          <svg viewBox="0 0 20 20"><path d="M10 12.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zm6.9-2.1a6.9 6.9 0 0 0 .07-1c0-.33-.03-.66-.07-.97l2.1-1.64a.5.5 0 0 0 .12-.63l-2-3.46a.5.5 0 0 0-.61-.22l-2.48 1a7.3 7.3 0 0 0-1.67-.97l-.38-2.64A.49.49 0 0 0 11.5 0h-4a.49.49 0 0 0-.49.42l-.38 2.64a7.3 7.3 0 0 0-1.66.97l-2.49-1a.49.49 0 0 0-.6.22l-2 3.46a.48.48 0 0 0 .12.63l2.1 1.65a6.86 6.86 0 0 0 0 1.94L.99 12.57a.48.48 0 0 0-.12.63l2 3.46a.49.49 0 0 0 .6.22l2.49-1c.52.37 1.08.68 1.66.97l.38 2.64c.06.24.27.42.49.42h4c.22 0 .43-.18.49-.42l.38-2.64a7.3 7.3 0 0 0 1.67-.97l2.48 1c.23.09.49 0 .61-.22l2-3.46a.48.48 0 0 0-.12-.63l-2.1-1.65z"/></svg>
+          Config
+        </button>
+        <div class="dropdown" id="configDropdown">
+          <div class="dropdown-item" id="ddStrategy"><span class="di-icon">🗂</span> Redo Strategy</div>
+          <div class="dropdown-item" id="ddApiKey"><span class="di-icon">🔑</span> API Key</div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item" id="ddResetDismissed"><span class="di-icon">↺</span> Restore Dismissed</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="fetch-paused-bar" id="fetchPausedBar">
+    <span>⚠ <strong id="pauseReason">API failure threshold reached</strong> — fetching stopped to avoid burning your quota</span>
+    <button class="btn-warn" id="btnRetryFetch">↺ Retry</button>
+    <button class="btn-warn" id="btnDismissPause" style="margin-left:auto">✕</button>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="strategy-summary" id="strategySummary" style="display:none"></div>
+      <div class="sidebar-header">
+        <span>Recommendations</span>
+        <span id="stockCount" style="font-size:11px;color:var(--text2)"></span>
+      </div>
+      <div class="sidebar-filters">
+        <button class="filter-chip active" id="filterAll">All</button>
+        <button class="filter-chip" id="filterStarred">⭐ Starred</button>
+        <button class="filter-chip" id="filterBuy">Buy</button>
+      </div>
+      <div class="stock-list" id="stockList"></div>
+    </div>
+
+    <div class="main" id="main">
+      <div class="center-state" id="loadingState" style="display:none">
+        <div class="spinner"></div>
+        <h2>Analysing your profile…</h2>
+        <p id="loadingMsg">Fetching stock data for your investment profile. This takes about a minute.</p>
+      </div>
+      <div class="center-state" id="emptyState">
+        <h2>No data yet</h2>
+        <p>Click Refresh to fetch stock data for your profile, or wait for the daily 5pm fetch.</p>
+        <button class="btn btn-primary" id="btnFetchEmpty">↻ Fetch Now</button>
+      </div>
+      <div class="detail" id="detailPanel" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal">
+      <h2>Configuration</h2>
+      <p style="margin-bottom:16px">Stock data and AI analysis settings. All credentials are stored locally only.</p>
+
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text2);margin-bottom:8px">Stock Data — Yahoo Finance</p>
+      <p style="font-size:11px;color:var(--text2);margin-bottom:16px">No API key required. Data is fetched directly from Yahoo Finance.</p>
+
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text2);margin-bottom:8px">Fetch Behaviour</p>
+      <label for="failureThresholdInput">Failure threshold <span style="font-size:10px;color:var(--text2);font-weight:400">(stop fetching after N failed API calls)</span></label>
+      <input type="number" id="failureThresholdInput" placeholder="3" min="1" max="50" autocomplete="off" style="margin-bottom:16px; width:100px; font-family:inherit">
+
+      <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text2);margin-bottom:8px">AI Analysis (Ollama)</p>
+      <label for="ollamaUrlInput">Ollama URL</label>
+      <input type="text" id="ollamaUrlInput" placeholder="http://localhost:11434" autocomplete="off" style="margin-bottom:12px">
+      <label for="ollamaModelInput">Model</label>
+      <input type="text" id="ollamaModelInput" placeholder="gemma4:latest" autocomplete="off">
+
+      <div class="toggle-row">
+        <div class="toggle-label">
+          Debug Mode
+          <small>Logs all API requests &amp; responses in a popout panel</small>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="debugModeToggle">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="btnModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="btnModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug panel (slide-in from right) -->
+  <div class="debug-panel" id="debugPanel">
+    <div class="debug-panel-header">
+      <span class="debug-panel-title">🐛 Debug Log</span>
+      <span class="debug-count-badge" id="debugCountBadge">0 events</span>
+      <button class="debug-icon-btn primary" id="btnAnalyseDebug">Analyse with Ollama</button>
+      <button class="debug-icon-btn" id="btnClearDebug" title="Clear log">✕ Clear</button>
+      <button class="debug-icon-btn" id="btnCloseDebug" title="Close">✕</button>
+    </div>
+    <div class="debug-entries" id="debugEntries">
+      <div style="padding:24px;text-align:center;color:var(--text2);font-size:12px">No events yet — trigger a fetch or AI analysis to see requests here.</div>
+    </div>
+    <div class="debug-analysis" id="debugAnalysis" style="display:none">
+      <div class="debug-analysis-header">
+        <span class="debug-analysis-title">Ollama Analysis</span>
+        <span id="debugAnalysisStatus" style="font-size:10px;color:var(--text2)"></span>
+      </div>
+      <div class="debug-analysis-body" id="debugAnalysisBody"></div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

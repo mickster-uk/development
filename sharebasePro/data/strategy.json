@@ -1,0 +1,13 @@
+{
+  "markets": [
+    "UK"
+  ],
+  "risk": "aggressive",
+  "horizon": "short",
+  "stockTypes": [
+    "dividend"
+  ],
+  "sectors": [],
+  "marketCap": "small",
+  "createdAt": "2026-06-25T18:08:03.117Z"
+}

@@ -1,0 +1,43 @@
+{
+  "name": "stock-recommender",
+  "version": "1.0.0",
+  "description": "Stock recommendation system for UK and US equities",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --mac --win --linux"
+  },
+  "dependencies": {
+    "node-cron": "^4.5.0",
+    "technicalindicators": "^3.1.0"
+  },
+  "devDependencies": {
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.sharebasepro.desktop",
+    "productName": "SharebasePro",
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.finance"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": "nsis"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": "AppImage"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "data/**/*"
+    ]
+  }
+}

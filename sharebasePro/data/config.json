@@ -1,0 +1,9 @@
+{
+  "rapidApiKey": "3ab7a26abcmsh92cc623fe76fbc9p1879b7jsnf4319b8a8c39",
+  "ollamaUrl": "http://localhost:11434",
+  "ollamaModel": "gemma4:latest",
+  "debugMode": true,
+  "finnhubKey": "d8ul231r01qrt65sikr0d8ul231r01qrt65sikrg",
+  "finnhubSecret": "d8ul231r01qrt65siksg",
+  "apiFailureThreshold": 3
+}

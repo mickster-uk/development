@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'unsafe-inline'">
+  <title>Investment Strategy Setup</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e8eaf0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+      -webkit-app-region: drag;
+    }
+    .container {
+      width: 100%;
+      max-width: 560px;
+      -webkit-app-region: no-drag;
+    }
+    .progress-bar {
+      height: 3px;
+      background: #1e2130;
+      border-radius: 2px;
+      margin-bottom: 32px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: #5B6FE4;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .step-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #5B6FE4;
+      margin-bottom: 8px;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #f0f2f8;
+    }
+    .subtitle {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .options.row { flex-direction: row; flex-wrap: wrap; }
+    .option {
+      border: 1.5px solid #1e2130;
+      border-radius: 10px;
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .option:hover { border-color: #3a4060; }
+    .option.selected { border-color: #5B6FE4; background: rgba(91,111,228,0.08); }
+    .option.chip {
+      padding: 8px 14px;
+      font-size: 13px;
+      border-radius: 20px;
+    }
+    .option-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .option-desc { font-size: 12px; color: #6b7280; }
+    .text-input {
+      width: 100%;
+      background: #1a1e2e;
+      border: 1.5px solid #1e2130;
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #e8eaf0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .text-input:focus { border-color: #5B6FE4; }
+    .input-hint { font-size: 11px; color: #6b7280; margin-top: 8px; }
+    .ticker-list { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .ticker-chip {
+      background: rgba(91,111,228,0.15);
+      border: 1px solid rgba(91,111,228,0.4);
+      border-radius: 16px;
+      padding: 4px 10px 4px 12px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ticker-chip .remove {
+      cursor: pointer;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .ticker-chip .remove:hover { color: #e8eaf0; }
+    .nav { display: flex; justify-content: space-between; margin-top: 32px; align-items: center; }
+    .btn {
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: #5B6FE4; color: white; }
+    .btn-secondary { background: #1e2130; color: #9ba3b5; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .step-counter { font-size: 12px; color: #6b7280; }
+
+    /* ── Strategy review panel ── */
+    #step-review .subtitle { margin-bottom: 16px; }
+    .prompt-box {
+      background: #0a0d14;
+      border: 1px solid #1e2130;
+      border-radius: 10px;
+      padding: 14px 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 11.5px;
+      line-height: 1.65;
+      color: #6b7280;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+    .prompt-box::-webkit-scrollbar { width: 5px; }
+    .prompt-box::-webkit-scrollbar-thumb { background: #2d3352; border-radius: 3px; }
+    .btn-claude {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px;
+      margin-top: 14px;
+      background: #5B6FE4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-claude:hover { opacity: 0.88; }
+    .btn-claude.copied { background: #2CA87F; }
+    .copy-hint { font-size: 11px; color: #6b7280; text-align: center; margin-top: 8px; }
+    .universe-section {
+      margin-top: 16px;
+      border-top: 1px solid #1e2130;
+      padding-top: 14px;
+    }
+    .universe-header {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #5B6FE4;
+      margin-bottom: 10px;
+    }
+    .universe-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+      max-height: 148px;
+      overflow-y: auto;
+    }
+    .universe-grid::-webkit-scrollbar { width: 4px; }
+    .universe-grid::-webkit-scrollbar-thumb { background: #2d3352; border-radius: 2px; }
+    .universe-chip {
+      background: #131625;
+      border: 1px solid #1e2130;
+      border-radius: 6px;
+      padding: 5px 7px;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .uc-ticker { font-size: 11px; font-weight: 800; color: #e8eaf0; }
+    .uc-name   { font-size: 9px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ── Paste section ── */
+    .paste-section {
+      margin-top: 14px;
+      border-top: 1px solid #1e2130;
+      padding-top: 14px;
+    }
+    .paste-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #5B6FE4;
+      margin-bottom: 8px;
+    }
+    .paste-textarea {
+      width: 100%;
+      background: #0a0d14;
+      border: 1.5px solid #1e2130;
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #e8eaf0;
+      font-size: 11.5px;
+      font-family: 'SF Mono', Menlo, monospace;
+      resize: vertical;
+      min-height: 72px;
+      max-height: 140px;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.5;
+    }
+    .paste-textarea:focus { border-color: #5B6FE4; }
+    .paste-count { font-size: 11px; color: #2CA87F; margin: 8px 0 5px; }
+    .paste-count.error { color: #E4503C; }
+    .paste-tickers { display: flex; flex-wrap: wrap; gap: 5px; }
+    .paste-ticker-chip {
+      background: rgba(44,168,127,0.12);
+      border: 1px solid rgba(44,168,127,0.35);
+      border-radius: 12px;
+      padding: 2px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #2CA87F;
+    }
+    .paste-skip {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .paste-skip span {
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+    }
+    .paste-skip span:hover { color: #9ba3b5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+
+    <!-- Step 1: Markets -->
+    <div class="step active" id="step-1">
+      <div class="step-label">Step 1 of 6</div>
+      <h1>Which markets do you want to cover?</h1>
+      <p class="subtitle">Select all that apply. UK stocks use the London Stock Exchange (.L tickers).</p>
+      <div class="options row" id="markets">
+        <div class="option chip" data-value="US">🇺🇸 US Equities</div>
+        <div class="option chip" data-value="UK">🇬🇧 UK Equities</div>
+        <div class="option chip" data-value="ETF">📦 ETFs</div>
+      </div>
+    </div>
+
+    <!-- Step 2: Risk -->
+    <div class="step" id="step-2">
+      <div class="step-label">Step 2 of 6</div>
+      <h1>What's your risk tolerance?</h1>
+      <p class="subtitle">This sets indicator thresholds and how aggressively buy signals are weighted.</p>
+      <div class="options" id="risk">
+        <div class="option" data-value="conservative">
+          <div class="option-title">🛡 Conservative</div>
+          <div class="option-desc">Focus on dividend stocks, low volatility. RSI buy zone: &lt;40. Prefer large-cap.</div>
+        </div>
+        <div class="option" data-value="moderate">
+          <div class="option-title">⚖️ Moderate</div>
+          <div class="option-desc">Balanced growth and income. RSI buy zone: &lt;45. Mix of mid and large-cap.</div>
+        </div>
+        <div class="option" data-value="aggressive">
+          <div class="option-title">🚀 Aggressive</div>
+          <div class="option-desc">Growth-first. RSI buy zone: &lt;55. Accepts higher volatility for higher returns.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Horizon -->
+    <div class="step" id="step-3">
+      <div class="step-label">Step 3 of 6</div>
+      <h1>What's your investment horizon?</h1>
+      <p class="subtitle">Determines whether short-term signals (MACD, RSI) or fundamentals (P/E, EPS) carry more weight.</p>
+      <div class="options" id="horizon">
+        <div class="option" data-value="short">
+          <div class="option-title">⚡ Short-term (0–6 months)</div>
+          <div class="option-desc">Technical signals dominate. MACD crossovers and RSI are primary triggers.</div>
+        </div>
+        <div class="option" data-value="medium">
+          <div class="option-title">📅 Medium-term (6 months – 2 years)</div>
+          <div class="option-desc">Blend of technicals and fundamentals. 50-day MA and earnings growth both matter.</div>
+        </div>
+        <div class="option" data-value="long">
+          <div class="option-title">🏔 Long-term (2+ years)</div>
+          <div class="option-desc">Fundamentals lead. P/E, EPS growth, and dividend yield are the primary filters.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Stock type -->
+    <div class="step" id="step-4">
+      <div class="step-label">Step 4 of 6</div>
+      <h1>What types of stocks interest you?</h1>
+      <p class="subtitle">Select all that apply. Used to weight scoring criteria.</p>
+      <div class="options row" id="stockTypes">
+        <div class="option chip" data-value="growth">📈 Growth</div>
+        <div class="option chip" data-value="value">🏷 Value</div>
+        <div class="option chip" data-value="dividend">💰 Dividend</div>
+        <div class="option chip" data-value="momentum">⚡ Momentum</div>
+      </div>
+    </div>
+
+    <!-- Step 5: Sectors -->
+    <div class="step" id="step-5">
+      <div class="step-label">Step 5 of 6</div>
+      <h1>Which sectors interest you?</h1>
+      <p class="subtitle">Select all that apply. Leave all unselected to cover all sectors.</p>
+      <div class="options row" id="sectors">
+        <div class="option chip" data-value="Technology">💻 Technology</div>
+        <div class="option chip" data-value="Finance">🏦 Finance</div>
+        <div class="option chip" data-value="Healthcare">⚕️ Healthcare</div>
+        <div class="option chip" data-value="Energy">⚡ Energy</div>
+        <div class="option chip" data-value="Consumer">🛍 Consumer</div>
+        <div class="option chip" data-value="Industrials">🏗 Industrials</div>
+        <div class="option chip" data-value="Materials">⛏ Materials</div>
+        <div class="option chip" data-value="Utilities">💡 Utilities</div>
+        <div class="option chip" data-value="RealEstate">🏠 Real Estate</div>
+      </div>
+    </div>
+
+    <!-- Step 6: Market cap -->
+    <div class="step" id="step-6">
+      <div class="step-label">Step 6 of 6</div>
+      <h1>Preferred market cap range?</h1>
+      <p class="subtitle">Filters the universe of stocks considered for recommendations.</p>
+      <div class="options" id="marketCap">
+        <div class="option" data-value="large">
+          <div class="option-title">🏢 Large-cap (>£/$ 10bn)</div>
+          <div class="option-desc">FTSE 100, S&P 500. Lower risk, more liquidity.</div>
+        </div>
+        <div class="option" data-value="mid">
+          <div class="option-title">🏬 Mid-cap (£/$ 2bn – 10bn)</div>
+          <div class="option-desc">FTSE 250, S&P MidCap. Growth potential with reasonable stability.</div>
+        </div>
+        <div class="option" data-value="small">
+          <div class="option-title">🏪 Small-cap (&lt;£/$ 2bn)</div>
+          <div class="option-desc">Higher risk, higher potential reward. Less analyst coverage.</div>
+        </div>
+        <div class="option" data-value="any">
+          <div class="option-title">🌐 All sizes</div>
+          <div class="option-desc">No market cap filter — score stocks across all sizes.</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Review panel -->
+    <div class="step" id="step-review">
+      <div class="step-label">Ready for Claude</div>
+      <h1>Your analysis prompt</h1>
+      <p class="subtitle">A tailored prompt has been built from your strategy and stock universe. Copy it to Claude for a full analysis and stock recommendations.</p>
+      <div class="prompt-box" id="promptBox">Building prompt…</div>
+      <button class="btn-claude" id="btnClaude">Copy prompt &amp; open Claude</button>
+      <p class="copy-hint" id="copyHint">Prompt will be on your clipboard — just paste into Claude</p>
+
+      <div class="paste-section" id="pasteSection" style="display:none">
+        <div class="paste-label">Paste Claude's response to import your watchlist</div>
+        <textarea class="paste-textarea" id="pasteArea" placeholder="Paste Claude's full response here…"></textarea>
+        <p class="paste-count" id="pasteCount" style="display:none"></p>
+        <div class="paste-tickers" id="pasteTickers"></div>
+        <p class="paste-skip"><span id="skipLink">Skip — use filtered universe instead</span></p>
+      </div>
+
+      <div class="universe-section" id="universeSection" style="display:none">
+        <div class="universe-header" id="universeHeader">Stock universe</div>
+        <div class="universe-grid" id="universeGrid"></div>
+      </div>
+    </div>
+
+    <div class="nav">
+      <button class="btn btn-secondary" id="btnBack">Back</button>
+      <span class="step-counter" id="stepCounter">1 / 6</span>
+      <button class="btn btn-primary" id="btnNext">Next</button>
+    </div>
+  </div>
+  <script src="interview.js"></script>
+</body>
+</html>
