@@ -8,13 +8,13 @@
     "build": "electron-builder"
   },
   "dependencies": {
-    "axios": "^1.7.9",
-    "googleapis": "^172.0.0",
-    "uuid": "^14.0.0"
+    "axios": "^1.18.1",
+    "googleapis": "^173.0.0",
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
-    "electron": "^41.5.0",
-    "electron-builder": "^26.8.1"
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.calendarai.desktop",
