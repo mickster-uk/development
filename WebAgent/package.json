@@ -14,13 +14,13 @@
   },
   "dependencies": {
     "@mozilla/readability": "0.6.0",
-    "axios": "^1.7.9",
-    "cheerio": "^1.0.0",
-    "express": "^4.21.2",
-    "jsdom": "^25.0.1",
-    "node-cron": "4.0.0",
-    "playwright": "^1.50.0",
-    "turndown": "^7.2.0"
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "jsdom": "^29.1.1",
+    "node-cron": "4.5.0",
+    "playwright": "^1.61.1",
+    "turndown": "^7.2.4"
   },
   "devDependencies": {
     "jest": "^30.4.2"
