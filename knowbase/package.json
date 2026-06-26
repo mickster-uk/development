@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.9",
+  "version": "1.0.11",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -28,16 +28,16 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^42.3.0",
-    "electron-builder": "^26.8.1",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "jest": "^30.4.2",
-    "playwright-core": "^1.60.0",
-    "sharp": "^0.34.5"
+    "playwright-core": "^1.61.1",
+    "sharp": "^0.35.2"
   },
   "dependencies": {
-    "highlight.js": "^11.9.0",
-    "marked": "^4.3.0",
-    "mermaid": "^11.15.0"
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.5",
+    "mermaid": "^11.16.0"
   },
   "build": {
     "appId": "com.knowbase.app",

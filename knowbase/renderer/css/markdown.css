@@ -129,12 +129,7 @@
 .markdown-body .code-block-wrap pre {
   margin: 0;
   padding: 14px 16px;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-solid) transparent;
 }
-.markdown-body .code-block-wrap pre::-webkit-scrollbar { height: 4px; }
-.markdown-body .code-block-wrap pre::-webkit-scrollbar-thumb { background: var(--border-solid); border-radius: 2px; }
 
 .markdown-body .code-block-wrap code {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -145,7 +140,9 @@
   padding: 0;
   border-radius: 0;
   color: inherit;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Copy button */
