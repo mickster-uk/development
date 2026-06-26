@@ -12,11 +12,11 @@
     "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/mik3bot/tests/unit/results.json"
   },
   "dependencies": {
-    "axios": "^1.7.9"
+    "axios": "^1.18.1"
   },
   "devDependencies": {
-    "electron": "^41.5.0",
-    "electron-builder": "^26.8.1",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "jest": "^30.4.2"
   },
   "build": {
