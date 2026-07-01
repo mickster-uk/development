@@ -1,1 +1,32 @@
-find . -name "package.json" -not -path "*/node_modules/*" -print0 | xargs -0 -I {} -P 4 sh -c 'cd "$(dirname "{}")" && echo "Installing in $(pwd)..." && npm install'
+#!/usr/bin/env bash
+set -euo pipefail
+
+APPS=(BotTester CalendarAI Mik3Bot WebAgent knowbase promptbase sharebasePro)
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+for app in "${APPS[@]}"; do
+  dir="$ROOT/$app"
+  if [ ! -f "$dir/package.json" ]; then
+    echo "⚠  $app — no package.json, skipping"
+    continue
+  fi
+
+  echo ""
+  echo "── $app ─────────────────────────────────────"
+  cd "$dir"
+
+  echo "  bumping versions..."
+  npx --yes npm-check-updates -u --silent
+
+  echo "  installing..."
+  npm install --silent
+
+  echo "  auditing..."
+  npm audit fix --silent || true
+
+  echo "  done."
+done
+
+echo ""
+echo "All apps updated."
