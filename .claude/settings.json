@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm info *)",
+      "Bash(python3 -c \"import json,sys; vs=[v for v in json.load\\(sys.stdin\\) if v.startswith\\('4.'\\)]; print\\(vs[-1]\\)\")"
+    ],
+    "additionalDirectories": [
+      "/Users/mikefinch/Documents/knowbase/apps/mik3bot/system"
+    ]
+  }
+}
