@@ -26,6 +26,8 @@ for app in "${APPS[@]}"; do
   npm audit fix --silent || true
 
   echo "  done."
+
+  snyk test || true
 done
 
 echo ""
