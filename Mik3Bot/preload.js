@@ -16,4 +16,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getIconDataUrl:        () => ipcRenderer.invoke('get-icon-data-url'),
   selectKnowledgePath:   () => ipcRenderer.invoke('select-knowbase-folder'),
   saveStarred:           (data) => ipcRenderer.invoke('save-starred', data),
+  ttsSpeak:              (text) => ipcRenderer.invoke('tts-speak', text),
+  sttTranscribe:         (audioBase64, mimeType) => ipcRenderer.invoke('stt-transcribe', { audioBase64, mimeType }),
 });

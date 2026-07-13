@@ -12,6 +12,7 @@ A minimal floating desktop assistant powered by Ollama or any Llama-compatible A
 - Markdown rendering for responses
 - Star responses to save them as Markdown notes
 - Query history saved locally
+- Voice input via microphone (speech-to-text) and read-aloud replies (text-to-speech), powered by ElevenLabs
 - Global toggle shortcut: `Cmd/Ctrl + Shift + Space`
 
 ## Installation
@@ -41,6 +42,8 @@ Produces platform packages via `electron-builder` using the config in `package.j
 | Quit | Click the red dot |
 | Open settings | Click **⚙ config** |
 | Save a response | Click **☆** on any response |
+| Voice input | Click **🎤**, speak, click again to stop — transcribes and auto-sends |
+| Hear a response read aloud | Click **🔊** on any response |
 
 ## Conversation memory
 
@@ -72,6 +75,9 @@ Click **⚙ config** to open the settings panel.
 | `knowledge` | Built-in RAG knowledge folder |
 | `knowbase` | External folder to include in RAG context (e.g. your Knowbase notes) |
 | `webagent` | URL of a running WebAgent instance for live web search |
+| `elevenlabs key` | ElevenLabs API key — required for voice input and read-aloud |
+| `voice id` | ElevenLabs voice ID used for read-aloud playback |
+| `auto-speak replies` | Automatically read every reply aloud as soon as it arrives |
 
 ## Defaults
 
@@ -82,6 +88,9 @@ Click **⚙ config** to open the settings panel.
 | `apiKey` | *(blank)* |
 | `renderMarkdown` | `true` |
 | `storeHistory` | `true` |
+| `elevenLabsApiKey` | *(blank)* |
+| `elevenLabsVoiceId` | `bIHbv24MWmeRgasZH58o` |
+| `autoSpeak` | `false` |
 
 ## RAG (knowledge base)
 
@@ -104,7 +113,18 @@ Click **show in Finder** in the settings panel to locate the file.
 
 Click **☆** on any response to save it as a Markdown file in the `Starred/` subfolder of your knowledge or Knowbase directory. Saved files are named by date and prompt.
 
+## Voice (ElevenLabs)
+
+Set an `elevenlabs key` in settings to enable voice input and read-aloud replies. Optionally set a `voice id` (defaults to `bIHbv24MWmeRgasZH58o` if left blank).
+
+- **Voice input** — click **🎤** to start recording, click again to stop. The recording is sent to ElevenLabs Scribe for transcription; the transcript fills the prompt input and is sent automatically.
+- **Read aloud** — click **🔊** on any response to hear it spoken via ElevenLabs text-to-speech.
+- **Auto-speak** — enable the `auto-speak replies` toggle to have every reply read aloud automatically as soon as it arrives.
+
+Both features require microphone/network access and will show an error in the response panel if the API key is missing or a request fails.
+
 ## Requirements
 
 - Node.js 18+
 - Ollama running locally, or any OpenAI-compatible `/api/chat` endpoint
+- ElevenLabs API key (optional) for voice input and read-aloud replies

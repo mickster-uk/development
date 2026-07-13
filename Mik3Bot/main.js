@@ -4,6 +4,8 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const { RAGService } = require('./src/rag-service');
+const { streamToBuffer } = require('./src/stream-to-buffer');
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
 
 const KNOWLEDGE_PATH = path.join(__dirname, 'knowledge');
 let ragService;
@@ -60,7 +62,10 @@ const DEFAULTS = {
   model: 'gemma4:latest',
   apiKey: '',
   renderMarkdown: true,
-  storeHistory: true
+  storeHistory: true,
+  elevenLabsApiKey: '',
+  elevenLabsVoiceId: 'bIHbv24MWmeRgasZH58o',
+  autoSpeak: false
 };
 
 const PANEL_WIDTH = 520;
@@ -186,6 +191,43 @@ ipcMain.handle('save-starred', async (_, { prompt, response }) => {
   }
 });
 ipcMain.handle('show-history-in-finder', () => shell.showItemInFolder(getHistoryPath()));
+
+// ── ElevenLabs voice ──────────────────────────────────────────────────────
+const ELEVENLABS_TIMEOUT_SECONDS = 30;
+
+ipcMain.handle('tts-speak', async (event, text) => {
+  const cfg = loadConfig();
+  if (!cfg.elevenLabsApiKey) throw new Error('ElevenLabs API key not set.');
+  if (!text || !text.trim()) throw new Error('Nothing to speak.');
+
+  const client = new ElevenLabsClient({ apiKey: cfg.elevenLabsApiKey, timeoutInSeconds: ELEVENLABS_TIMEOUT_SECONDS });
+  const voiceId = cfg.elevenLabsVoiceId || DEFAULTS.elevenLabsVoiceId;
+
+  const audioStream = await client.textToSpeech.convert(voiceId, {
+    text,
+    modelId: 'eleven_multilingual_v2',
+    outputFormat: 'mp3_44100_128'
+  });
+  const buffer = await streamToBuffer(audioStream);
+  return `data:audio/mpeg;base64,${buffer.toString('base64')}`;
+});
+
+ipcMain.handle('stt-transcribe', async (event, { audioBase64, mimeType }) => {
+  const cfg = loadConfig();
+  if (!cfg.elevenLabsApiKey) throw new Error('ElevenLabs API key not set.');
+  if (!audioBase64) throw new Error('Nothing to transcribe.');
+
+  const client = new ElevenLabsClient({ apiKey: cfg.elevenLabsApiKey, timeoutInSeconds: ELEVENLABS_TIMEOUT_SECONDS });
+  const result = await client.speechToText.convert({
+    modelId: 'scribe_v1',
+    file: {
+      data: Buffer.from(audioBase64, 'base64'),
+      contentType: mimeType || 'audio/webm',
+      filename: 'recording.webm'
+    }
+  });
+  return result.text || '';
+});
 
 // ── WebAgent search ───────────────────────────────────────────────────────
 async function queryWebAgent(prompt, webAgentUrl) {

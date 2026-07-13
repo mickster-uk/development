@@ -1,6 +1,6 @@
 {
   "name": "Mik3Bot",
-  "version": "1.18.0",
+  "version": "1.19.0",
   "description": "A minimal desktop AI assistant powered by Llama API",
   "main": "main.js",
   "scripts": {
@@ -12,10 +12,11 @@
     "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/mik3bot/tests/unit/results.json"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.56.0",
     "axios": "^1.18.1"
   },
   "devDependencies": {
-    "electron": "^42.5.0",
+    "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "jest": "^30.4.2"
   },
@@ -34,7 +35,10 @@
     ],
     "mac": {
       "icon": "build/icon.icns",
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Mik3Bot uses the microphone for voice input via ElevenLabs."
+      }
     },
     "win": {
       "icon": "build/icon.ico",
