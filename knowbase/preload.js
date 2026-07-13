@@ -8,8 +8,9 @@ marked.setOptions({ gfm: true, breaks: true });
 marked.use({
   renderer: {
     // Syntax-highlighted code blocks (mermaid gets a special wrapper)
-    code(code, infostring) {
-      const lang = (infostring || '').match(/^\S*/)?.[0] || '';
+    code(token) {
+      const code = token.text;
+      const lang = (token.lang || '').match(/^\S*/)?.[0] || '';
 
       // Mermaid diagrams – rendered in the renderer via mermaid.js
       if (lang === 'mermaid') {
@@ -37,7 +38,9 @@ marked.use({
     },
 
     // Open external links in system browser, internal links in-panel
-    link(href, title, text) {
+    link(token) {
+      const { href, title } = token;
+      const text = this.parser.parseInline(token.tokens);
       if (!href) return text;
       const isExt = /^https?:\/\//.test(href);
       const t     = title ? ` title="${title}"` : '';
@@ -48,21 +51,22 @@ marked.use({
     },
 
     // Anchor-linked headings
-    heading(text, level) {
-      const id = text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
+    heading(token) {
+      const level = token.depth;
+      const text  = this.parser.parseInline(token.tokens);
+      const id    = token.text.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-');
       return `<h${level} id="${id}"><a class="heading-anchor" href="#${id}">#</a>${text}</h${level}>`;
     },
 
     // Checkbox task lists
-    listitem(text, task, checked) {
-      if (task) {
-        return `<li class="task-item"><input type="checkbox" disabled${checked ? ' checked' : ''}> ${text}</li>`;
-      }
-      return `<li>${text}</li>`;
+    listitem(token) {
+      const body = this.parser.parse(token.tokens);
+      return token.task ? `<li class="task-item">${body}</li>` : `<li>${body}</li>`;
     },
 
     // Inline code (backticks) with copy button
-    codespan(code) {
+    codespan(token) {
+      const code = token.text;
       return `<code class="inline-code-wrap">` +
              `<button class="inline-copy-btn" data-code="${encodeURIComponent(code)}" title="Copy" aria-label="Copy code">` +
              `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>` +
@@ -131,6 +135,10 @@ contextBridge.exposeInMainWorld('api', {
   // Config
   getConfig:  ()    => ipcRenderer.invoke('get-config'),
   saveConfig: (cfg) => ipcRenderer.invoke('save-config', cfg),
+
+  // Voice (ElevenLabs)
+  ttsSpeak:      (text) => ipcRenderer.invoke('tts-speak', text),
+  sttTranscribe: (audioBase64, mimeType) => ipcRenderer.invoke('stt-transcribe', { audioBase64, mimeType }),
 
   // Window / panel
   togglePanel:    ()    => ipcRenderer.invoke('toggle-panel'),

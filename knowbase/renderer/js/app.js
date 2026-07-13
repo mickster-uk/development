@@ -67,6 +67,9 @@ const el = {
   edgeResize:     $('edge-resize'),
   tbVersion:      $('tb-version'),
   btnDisplay:     $('btn-display'),
+  btnVoiceSettings: $('btn-voice-settings'),
+  btnDictate:     $('btn-dictate'),
+  btnSpeak:       $('btn-speak'),
   btnCollapse:    $('btn-collapse'),
   panelTab:       $('panel-tab'),
   panelTabIcon:   document.querySelector('.panel-tab-icon-btn'),
@@ -761,6 +764,7 @@ function enterEditMode() {
   el.btnEditMode.style.display  = 'none';
   el.btnSave.style.display      = '';
   el.btnViewMode.style.display  = '';
+  el.btnDictate.style.display   = isJsonFile() ? 'none' : '';
 
   updateCtBar();
 }
@@ -788,6 +792,7 @@ async function enterViewMode(andSave = false) {
   el.btnEditMode.style.display  = '';
   el.btnSave.style.display      = 'none';
   el.btnViewMode.style.display  = 'none';
+  el.btnDictate.style.display   = 'none';
 
   setDirty(false);
   updateCtBar();
@@ -821,6 +826,7 @@ function updateCtBar() {
   const name = state.currentFile.split(/[/\\]/).pop();
   el.ctFile.textContent  = name;
   el.ctFile.classList.toggle('dirty', state.isDirty);
+  el.btnSpeak.style.display = isJsonFile() ? 'none' : '';
 }
 
 // ─── Mermaid ──────────────────────────────────────────────────────────────────
@@ -994,6 +1000,191 @@ async function renderMermaidDiagrams() {
         `<span>Diagram error: ${escapeHtml(e.message)}</span></div>`;
     }
   }
+}
+
+// ─── Voice (ElevenLabs dictate + read aloud) ─────────────────────────────────
+const ELEVENLABS_VOICE_ID_PLACEHOLDER = 'bIHbv24MWmeRgasZH58o';
+
+let statusFlashOriginal = null;
+let statusFlashTimer    = null;
+
+function flashStatus(msg) {
+  if (statusFlashTimer === null) statusFlashOriginal = el.statusMeta.textContent;
+  el.statusMeta.textContent = msg;
+  clearTimeout(statusFlashTimer);
+  statusFlashTimer = setTimeout(() => {
+    el.statusMeta.textContent = statusFlashOriginal;
+    statusFlashTimer = null;
+  }, 4000);
+}
+
+function getReadAloudText() {
+  if (isJsonFile()) return '';
+  if (state.isEditing) {
+    const ta = el.mdEditor;
+    const selected = ta.value.slice(ta.selectionStart, ta.selectionEnd).trim();
+    return stripMarkdown(selected || ta.value);
+  }
+  const sel = window.getSelection();
+  const selectedText = sel ? sel.toString().trim() : '';
+  if (selectedText && el.mdBody.contains(sel.anchorNode)) return selectedText;
+  return el.mdBody.textContent.trim() || stripMarkdown(state.editorContent);
+}
+
+let currentAudio = null;
+
+async function speakCurrent() {
+  const text = getReadAloudText();
+  if (!text) return;
+  try {
+    el.btnSpeak.disabled = true;
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    flashStatus('Generating speech…');
+    const dataUrl = await api.ttsSpeak(text);
+    currentAudio = new Audio(dataUrl);
+    currentAudio.play().catch(() => {});
+  } catch (err) {
+    flashStatus('⚠ ' + (err.message || 'Could not generate speech.'));
+  } finally {
+    el.btnSpeak.disabled = false;
+  }
+}
+
+let mediaRecorder     = null;
+let recordingChunks   = [];
+let isRequestingMic   = false;
+
+function blobToBase64(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+    reader.onerror   = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function appendDictation(text) {
+  const ta = el.mdEditor;
+  const needsSep = ta.value.length > 0 && !ta.value.endsWith('\n');
+  ta.value += (needsSep ? '\n' : '') + text;
+  state.editorContent = ta.value;
+  setDirty(true);
+  ta.focus();
+  ta.selectionStart = ta.selectionEnd = ta.value.length;
+}
+
+async function toggleDictation() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    return;
+  }
+  if (isRequestingMic) return;
+  isRequestingMic = true;
+  el.btnDictate.disabled = true;
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recordingChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordingChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      el.btnDictate.classList.remove('recording');
+      el.btnDictate.disabled = true;
+      try {
+        const blob = new Blob(recordingChunks, { type: 'audio/webm' });
+        if (blob.size === 0) return;
+        flashStatus('Transcribing…');
+        const base64     = await blobToBase64(blob);
+        const transcript = await api.sttTranscribe(base64, 'audio/webm');
+        if (transcript) appendDictation(transcript);
+      } catch (err) {
+        flashStatus('⚠ ' + (err.message || 'Transcription failed.'));
+      } finally {
+        el.btnDictate.disabled = false;
+      }
+    };
+    mediaRecorder.start();
+    el.btnDictate.classList.add('recording');
+    flashStatus('Recording…');
+  } catch {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    mediaRecorder = null;
+    flashStatus('⚠ Microphone access denied or unavailable.');
+  } finally {
+    isRequestingMic = false;
+    el.btnDictate.disabled = false;
+  }
+}
+
+const INWORLD_VOICE_ID_PLACEHOLDER = 'Luna';
+
+async function showVoiceSettingsPopover(anchorEl) {
+  closeVoiceSettingsPopover();
+  const cfg = await api.getConfig();
+
+  const box = document.createElement('div');
+  box.className = 'voice-settings-popover';
+  document.body.appendChild(box);
+  box.innerHTML =
+    `<label>Read aloud voice` +
+    `<select id="vs-provider">` +
+    `<option value="elevenlabs">ElevenLabs</option>` +
+    `<option value="inworld">Inworld</option>` +
+    `</select></label>` +
+    `<label>ElevenLabs API key<input type="password" id="vs-api-key" placeholder="sk_…" autocomplete="off"></label>` +
+    `<label>Voice ID<input type="text" id="vs-voice-id" placeholder="${ELEVENLABS_VOICE_ID_PLACEHOLDER}" autocomplete="off"></label>` +
+    `<div id="vs-inworld-fields">` +
+    `<label>Inworld API key<input type="password" id="vs-inworld-api-key" placeholder="base64 key" autocomplete="off"></label>` +
+    `<label>Voice ID<input type="text" id="vs-inworld-voice-id" placeholder="${INWORLD_VOICE_ID_PLACEHOLDER}" autocomplete="off"></label>` +
+    `</div>` +
+    `<div class="voice-settings-hint">Dictate always uses ElevenLabs. Read aloud uses the voice selected above.</div>`;
+
+  const providerSelect     = box.querySelector('#vs-provider');
+  const apiKeyInput        = box.querySelector('#vs-api-key');
+  const voiceIdInput       = box.querySelector('#vs-voice-id');
+  const inworldFields      = box.querySelector('#vs-inworld-fields');
+  const inworldApiKeyInput = box.querySelector('#vs-inworld-api-key');
+  const inworldVoiceInput  = box.querySelector('#vs-inworld-voice-id');
+
+  providerSelect.value     = cfg.ttsProvider === 'inworld' ? 'inworld' : 'elevenlabs';
+  apiKeyInput.value        = cfg.elevenLabsApiKey  || '';
+  voiceIdInput.value       = cfg.elevenLabsVoiceId || '';
+  inworldApiKeyInput.value = cfg.inworldApiKey     || '';
+  inworldVoiceInput.value  = cfg.inworldVoiceId    || '';
+
+  const updateInworldVisibility = () => {
+    inworldFields.style.display = providerSelect.value === 'inworld' ? '' : 'none';
+  };
+  updateInworldVisibility();
+
+  const persist = () => api.saveConfig({
+    ttsProvider:       providerSelect.value,
+    elevenLabsApiKey:  apiKeyInput.value.trim(),
+    elevenLabsVoiceId: voiceIdInput.value.trim(),
+    inworldApiKey:     inworldApiKeyInput.value.trim(),
+    inworldVoiceId:    inworldVoiceInput.value.trim()
+  });
+  providerSelect.addEventListener('change', () => { updateInworldVisibility(); persist(); });
+  apiKeyInput.addEventListener('blur',        () => persist());
+  voiceIdInput.addEventListener('blur',       () => persist());
+  inworldApiKeyInput.addEventListener('blur', () => persist());
+  inworldVoiceInput.addEventListener('blur',  () => persist());
+
+  const rect = anchorEl.getBoundingClientRect();
+  box.style.top   = (rect.bottom + 4) + 'px';
+  box.style.right = (window.innerWidth - rect.right) + 'px';
+
+  const onOutside = e => { if (!box.contains(e.target)) closeVoiceSettingsPopover(); };
+  setTimeout(() => document.addEventListener('click', onOutside, true), 10);
+  box._onOutside = onOutside;
+}
+
+function closeVoiceSettingsPopover() {
+  const m = document.querySelector('.voice-settings-popover');
+  if (!m) return;
+  if (m._onOutside) document.removeEventListener('click', m._onOutside, true);
+  m.remove();
 }
 
 // ─── Display picker ───────────────────────────────────────────────────────────
@@ -1181,6 +1372,7 @@ function bindEvents() {
   $('titlebar').addEventListener('dblclick', () => api.zoomWindow());
   el.btnSidebarToggle.addEventListener('click', toggleSidebar);
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
+  el.btnVoiceSettings.addEventListener('click', () => showVoiceSettingsPopover(el.btnVoiceSettings));
   el.btnTheme.addEventListener('click', toggleTheme);
   el.btnPin.addEventListener('click', togglePin);
   el.btnImport.addEventListener('click', () => showBookmarkFolderPicker(el.btnImport));
@@ -1196,6 +1388,8 @@ function bindEvents() {
   el.btnEditMode.addEventListener('click', enterEditMode);
   el.btnSave.addEventListener('click', () => saveCurrentFile());
   el.btnViewMode.addEventListener('click', () => enterViewMode(false));
+  el.btnDictate.addEventListener('click', () => toggleDictation());
+  el.btnSpeak.addEventListener('click', () => speakCurrent());
 
   setupSidebarResize();
   setupEdgePanelResize();

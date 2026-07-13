@@ -23,6 +23,8 @@ A polished Electron side-panel app for reading and editing Markdown files. Slide
 | **New file / folder** | Create files and folders directly from the sidebar |
 | **Refresh** | Reload the current folder to pick up files added externally |
 | **Chrome Reading List** | Import your Chrome/Brave/Edge reading list or any bookmarks folder as Markdown |
+| **Voice dictation** | Speak into your mic and have the transcript appended to the note (ElevenLabs) |
+| **Read aloud** | Have the current note (or your text selection) read back to you (ElevenLabs or Inworld) |
 | **Persistent state** | Remembers last folder, panel width, theme, sidebar width |
 
 ## Getting started
@@ -85,6 +87,31 @@ The file is created or overwritten each time items are received, then opened aut
 
 > You must have a folder open in Knowbase before the extension sends items, otherwise an error is shown.
 
+## Voice (dictation & read-aloud)
+
+Knowbase can turn speech into notes and notes into speech. Dictation (speech-to-text) always uses [ElevenLabs](https://elevenlabs.io). Read aloud (text-to-speech) can use either **ElevenLabs** or **[Inworld](https://inworld.ai)**, picked via a provider dropdown.
+
+### Setup
+
+1. Click the **gear icon** (⚙) in the title bar to open Voice settings.
+2. Choose a **Read aloud voice** provider — ElevenLabs or Inworld.
+3. Paste your ElevenLabs API key (required for Dictate always, and for Read aloud if ElevenLabs is selected). Optionally set a Voice ID — leave blank to use the default (`bIHbv24MWmeRgasZH58o`).
+4. If Inworld is selected for Read aloud, paste your Inworld API key and optionally a Voice ID — leave blank to use the default (`Luna`).
+
+> **Free-tier note:** ElevenLabs' free API tier rejects "library" voices (community-shared voices, even ones added to your own account) with a 402 `payment_required` error — only `premade` default voices or your own cloned voices work. The built-in default (`bIHbv24MWmeRgasZH58o`) is a confirmed-working `premade` voice. Don't swap it for a library voice ID unless you're on a paid plan.
+
+> **Inworld** is TTS-only here — there's no speech-to-text call, so Dictate always uses ElevenLabs regardless of which provider is selected for Read aloud. The TTS request uses model `inworld-tts-2`, non-streaming `BALANCED` delivery mode, language `en-US`, and speaking rate `1` — these are fixed and not exposed in the UI.
+
+### Dictate (🎤)
+
+Available in the per-file toolbar when editing a Markdown file (hidden for JSON and in preview mode). Click to start recording, click again to stop. The recording is transcribed and the transcript is **always appended to the end of the note** — not inserted at the cursor. Always uses ElevenLabs.
+
+### Read aloud (🔊)
+
+Available in the per-file toolbar in both view and edit mode (hidden for JSON files). Reads your current **text selection if one exists, otherwise the whole note**. In edit mode, Markdown syntax is stripped before sending to speech. Uses whichever provider (ElevenLabs or Inworld) is selected in Voice settings.
+
+Status (recording / transcribing / errors) shows briefly in the status bar and clears after a few seconds.
+
 ## Project structure
 
 ```
@@ -92,7 +119,8 @@ knowbase/
 ├── main.js          # Electron main process (window, IPC, filesystem, HTTP server)
 ├── preload.js       # Context bridge (markdown parsing, highlight.js, marked extensions)
 ├── lib/
-│   └── utils.js     # Shared filesystem and bookmark utilities
+│   ├── utils.js             # Shared filesystem and bookmark utilities
+│   └── stream-to-buffer.js  # Buffers ElevenLabs SDK streams (WHATWG or async-iterable)
 └── renderer/
     ├── index.html   # App shell
     ├── css/

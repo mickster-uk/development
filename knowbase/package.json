@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.11",
+  "version": "1.0.14",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -31,13 +31,14 @@
     "js-yaml": "^4.3.0"
   },
   "devDependencies": {
-    "electron": "^42.5.0",
+    "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "jest": "^30.4.2",
     "playwright-core": "^1.61.1",
     "sharp": "^0.35.2"
   },
   "dependencies": {
+    "@elevenlabs/elevenlabs-js": "^2.56.0",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.5",
     "mermaid": "^11.16.0"
@@ -61,7 +62,10 @@
         "dmg",
         "zip"
       ],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Knowbase uses the microphone to dictate notes via ElevenLabs."
+      }
     },
     "win": {
       "target": [

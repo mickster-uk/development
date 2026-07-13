@@ -8,6 +8,16 @@ const http = require('http');
 
 const READING_LIST_PORT = 57420;
 const { collectBookmarkLinks, buildFolderList, buildBookmarkMarkdown, readDirTree, MARKDOWN_EXT, attemptJsonFix } = require('./lib/utils');
+const { streamToBuffer } = require('./lib/stream-to-buffer');
+const { ElevenLabsClient } = require('@elevenlabs/elevenlabs-js');
+
+const ELEVENLABS_DEFAULT_VOICE_ID = 'bIHbv24MWmeRgasZH58o';
+const ELEVENLABS_TIMEOUT_SECONDS = 30;
+
+const INWORLD_DEFAULT_VOICE_ID = 'Luna';
+const INWORLD_MODEL_ID         = 'inworld-tts-2';
+const INWORLD_DELIVERY_MODE    = 'BALANCED';
+const INWORLD_LANGUAGE         = 'en-US';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CFG = {
@@ -260,6 +270,69 @@ ipcMain.handle('import-bookmarks-folder', (_, outputFolder, folderId) => {
 
 ipcMain.handle('get-config',    ()          => loadConfig());
 ipcMain.handle('save-config',   (_, data)   => { saveConfig(data); return { success: true }; });
+
+// ─── Voice (ElevenLabs + Inworld) ────────────────────────────────────────────
+async function speakWithElevenLabs(cfg, text) {
+  if (!cfg.elevenLabsApiKey) throw new Error('ElevenLabs API key not set.');
+
+  const client  = new ElevenLabsClient({ apiKey: cfg.elevenLabsApiKey, timeoutInSeconds: ELEVENLABS_TIMEOUT_SECONDS });
+  const voiceId = cfg.elevenLabsVoiceId || ELEVENLABS_DEFAULT_VOICE_ID;
+
+  const audioStream = await client.textToSpeech.convert(voiceId, {
+    text,
+    modelId: 'eleven_multilingual_v2',
+    outputFormat: 'mp3_44100_128'
+  });
+  const buffer = await streamToBuffer(audioStream);
+  return `data:audio/mpeg;base64,${buffer.toString('base64')}`;
+}
+
+async function speakWithInworld(cfg, text) {
+  if (!cfg.inworldApiKey) throw new Error('Inworld API key not set.');
+
+  const res = await fetch('https://api.inworld.ai/tts/v1/voice', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${cfg.inworldApiKey}`,
+      'Content-Type':  'application/json'
+    },
+    body: JSON.stringify({
+      text,
+      voiceId: cfg.inworldVoiceId || INWORLD_DEFAULT_VOICE_ID,
+      modelId: INWORLD_MODEL_ID,
+      audioConfig: { speakingRate: 1 },
+      deliveryMode: INWORLD_DELIVERY_MODE,
+      language: INWORLD_LANGUAGE
+    })
+  });
+  if (!res.ok) throw new Error(`Inworld TTS request failed: ${res.status} ${await res.text()}`);
+
+  const { audioContent } = await res.json();
+  return `data:audio/mpeg;base64,${audioContent}`;
+}
+
+ipcMain.handle('tts-speak', async (_, text) => {
+  if (!text || !text.trim()) throw new Error('Nothing to speak.');
+  const cfg = loadConfig();
+  return cfg.ttsProvider === 'inworld' ? speakWithInworld(cfg, text) : speakWithElevenLabs(cfg, text);
+});
+
+ipcMain.handle('stt-transcribe', async (_, { audioBase64, mimeType }) => {
+  const cfg = loadConfig();
+  if (!cfg.elevenLabsApiKey) throw new Error('ElevenLabs API key not set.');
+  if (!audioBase64) throw new Error('Nothing to transcribe.');
+
+  const client = new ElevenLabsClient({ apiKey: cfg.elevenLabsApiKey, timeoutInSeconds: ELEVENLABS_TIMEOUT_SECONDS });
+  const result = await client.speechToText.convert({
+    modelId: 'scribe_v1',
+    file: {
+      data: Buffer.from(audioBase64, 'base64'),
+      contentType: mimeType || 'audio/webm',
+      filename: 'recording.webm'
+    }
+  });
+  return result.text || '';
+});
 
 ipcMain.handle('write-file', async (_, filePath, content) => {
   try {
