@@ -498,6 +498,7 @@ app.on('second-instance', () => {
 
 // ─── App lifecycle ───────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
+  app.dock?.setIcon(path.join(__dirname, 'assets', 'icons', 'icon-512.png'));
   await createWindow();
 
   // Restore last panel width & active display
