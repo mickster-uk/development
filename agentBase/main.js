@@ -91,6 +91,7 @@ if (!gotLock) {
   });
 
   app.whenReady().then(() => {
+    app.dock?.setIcon(path.join(__dirname, 'assets', 'icons', 'icon-512.png'));
     const userData = app.getPath('userData');
     projectStore = new ProjectStore(path.join(userData, 'projects'));
     criteriaStore = new CriteriaStore(path.join(userData, 'criteria-templates.json'));
