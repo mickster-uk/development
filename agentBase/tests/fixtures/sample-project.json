@@ -1,0 +1,78 @@
+{
+  "schema": "agentbase/project@1",
+  "id": "proj-det01-test",
+  "name": "Financial Analysis Pipeline",
+  "createdAt": "2026-07-16T10:30:00.000Z",
+  "updatedAt": "2026-07-16T14:45:30.000Z",
+  "defaults": {
+    "model": "mistral-small"
+  },
+  "view": {
+    "tx": 0,
+    "ty": 0,
+    "k": 1
+  },
+  "nodes": [
+    {
+      "id": "n-orchestrator-1",
+      "role": "orchestrator",
+      "name": "Orchestrator",
+      "prompt": "You coordinate the financial analysis pipeline. Route incoming stock queries to the appropriate analyst agent based on data type.",
+      "model": "mistral-small",
+      "tests": [],
+      "timeoutMs": 30000,
+      "x": 100,
+      "y": 200
+    },
+    {
+      "id": "n-analyst-1",
+      "role": "agent",
+      "name": "CSV Financial Analyst",
+      "prompt": "Parses CSV financial data and generates markdown summaries with technical analysis and trading signals.\n\nInstructions:\n- Read CSV files containing OHLCV data with ticker, date, open, high, low, close, volume columns\n- Calculate 20-day and 50-day moving averages for each ticker\n- Identify support and resistance levels from the past 12 months\n- Generate markdown with tables and emoji signal indicators (↑ bullish, ↓ bearish, ↔ neutral)\n\nConstraints:\n- Always validate data format before processing; skip malformed rows with a warning\n- Round prices to 4 decimal places; express volumes in millions\n- Do not recommend buy/sell decisions; only present technical indicators\n- Flag any ticker with fewer than 60 trading days as insufficient data\n\nOutput format: Markdown with frontmatter (title, date, tickers), tables of indicators, and interpretation paragraphs",
+      "model": "mistral-small",
+      "tests": [
+        {
+          "id": "t-b2k1c9a-0",
+          "input": "CSV: GBPUSD, dates from 17/07/2025 to 17/07/2026, OHLCV data. Task: analyse trends and moving averages.",
+          "expect": {
+            "label": "12-month GBPUSD analysis",
+            "text": "Output includes markdown with 20-day and 50-day moving average values, identifies breakouts above 1.3100, contains at least 3 support/resistance levels, all prices in GBP format (£)",
+            "threshold": 7
+          }
+        },
+        {
+          "id": "t-b2k1c9a-1",
+          "input": "CSV: MSFT, exactly 60 trading days of data. Task: generate summary.",
+          "expect": {
+            "label": "Edge case: single ticker with 60 rows",
+            "text": "Output accepts exactly 60-day dataset, calculates both moving averages, does not flag as insufficient",
+            "threshold": 7
+          }
+        },
+        {
+          "id": "t-b2k1c9a-2",
+          "input": "CSV: 5 tickers (AAPL, MSFT, GOOGL, GBPUSD, EURUSD) with 200 days each. Task: generate comparative analysis.",
+          "expect": {
+            "label": "Multi-ticker portfolio",
+            "text": "Output includes separate sections per ticker, uses consistent formatting, total markdown length under 2000 chars",
+            "threshold": 7
+          }
+        }
+      ],
+      "timeoutMs": 60000,
+      "x": 400,
+      "y": 200
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-flow-1",
+      "from": "n-orchestrator-1",
+      "to": "n-analyst-1",
+      "criteria": {
+        "label": "CSV data query",
+        "templateId": null
+      }
+    }
+  ]
+}

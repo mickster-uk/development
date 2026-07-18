@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'">
+  <title>agentBase</title>
+  <link rel="stylesheet" href="renderer/css/app.css">
+</head>
+<body>
+  <div id="app">
+    <header id="topbar">
+      <div class="topbar-group">
+        <button id="btn-sidebar" class="icon-btn" title="Toggle sidebar (Cmd+B)" aria-label="Toggle sidebar">☰</button>
+        <span id="project-name" class="project-name">No project</span>
+        <span id="dirty-dot" class="dirty-dot" hidden>●</span>
+      </div>
+      <div class="topbar-group topbar-run">
+        <input id="run-input" class="input run-input" type="text" placeholder="Run input — what should the orchestrator work on?" aria-label="Run input">
+        <button id="btn-run" class="btn btn-primary">Run</button>
+        <span id="run-status" class="run-status" role="status" aria-live="polite"></span>
+      </div>
+      <div class="topbar-group">
+        <span id="zoom-level" class="zoom-level">100%</span>
+        <button id="btn-import" class="btn">Import</button>
+        <button id="btn-export" class="btn">Export</button>
+        <button id="btn-settings" class="icon-btn" title="Settings" aria-label="Settings">⚙</button>
+        <button id="btn-theme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+        <button id="btn-inspector" class="icon-btn" title="Toggle inspector (Cmd+I)" aria-label="Toggle inspector">⧉</button>
+      </div>
+    </header>
+
+    <aside id="sidebar" aria-label="Project navigation">
+      <section class="sidebar-section">
+        <h2 class="section-label">Projects</h2>
+        <ul id="project-list" class="item-list"></ul>
+        <button id="btn-new-project" class="btn btn-block">New project</button>
+      </section>
+      <section class="sidebar-section">
+        <h2 class="section-label">Criteria registry</h2>
+        <ul id="registry-list" class="item-list"></ul>
+      </section>
+      <section class="sidebar-section">
+        <h2 class="section-label">Run history</h2>
+        <ul id="run-list" class="item-list"></ul>
+      </section>
+    </aside>
+
+    <main id="canvas-wrap" tabindex="0" role="application" aria-label="Agent graph canvas">
+      <div id="canvas-transform">
+        <svg id="edge-layer" aria-hidden="true"></svg>
+        <div id="node-layer"></div>
+      </div>
+      <div id="canvas-hint" class="canvas-hint">Drag on empty canvas to create an agent · drag from a port to connect</div>
+      <div id="canvas-actions" role="toolbar" aria-label="Create agents">
+        <button id="btn-add-agent" class="btn">New agent</button>
+        <button id="btn-add-ai" class="btn btn-ai">AI agent</button>
+      </div>
+      <div id="canvas-toolbar" role="toolbar" aria-label="Canvas controls">
+        <button id="btn-zoom-fit" class="icon-btn" title="Zoom to fit (Shift+1)" aria-label="Zoom to fit">⤢</button>
+        <button id="btn-zoom-out" class="icon-btn" title="Zoom out" aria-label="Zoom out">−</button>
+        <button id="btn-zoom-in" class="icon-btn" title="Zoom in" aria-label="Zoom in">+</button>
+      </div>
+    </main>
+
+    <aside id="inspector" aria-label="Inspector">
+      <div id="inspector-body"></div>
+    </aside>
+
+    <div id="drawer-resizer" role="separator" aria-orientation="horizontal" aria-label="Resize panel" tabindex="0"></div>
+
+    <section id="drawer" aria-label="Debug and audit">
+      <div class="drawer-tabs" role="tablist">
+        <button class="tab active" role="tab" aria-selected="true" data-panel="panel-debug" id="tab-debug">Debug</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-audit" id="tab-audit">Audit</button>
+        <button class="tab" role="tab" aria-selected="false" data-panel="panel-runs" id="tab-runs">Runs</button>
+        <button id="btn-drawer" class="icon-btn drawer-collapse" title="Toggle panel (Cmd+J)" aria-label="Toggle panel">▾</button>
+      </div>
+      <div id="panel-debug" class="drawer-panel active" role="tabpanel">
+        <div id="invocation-list" class="split-master"></div>
+        <div id="invocation-detail" class="split-detail"><div class="empty-hint">Run the project to see requests and responses here.</div></div>
+      </div>
+      <div id="panel-audit" class="drawer-panel" role="tabpanel">
+        <div id="audit-table-wrap" class="table-wrap"></div>
+      </div>
+      <div id="panel-runs" class="drawer-panel" role="tabpanel">
+        <div id="runs-table-wrap" class="table-wrap"></div>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="criteria-dialog" aria-labelledby="criteria-title">
+    <h2 id="criteria-title">Edge criteria</h2>
+    <p class="dialog-sub">Every connection carries criteria — the gate the upstream output must pass.</p>
+    <div class="criteria-panes">
+      <div class="criteria-templates">
+        <input id="criteria-search" class="input" type="search" placeholder="Search templates" aria-label="Search templates">
+        <ul id="criteria-template-list"></ul>
+      </div>
+      <form id="criteria-form" method="dialog">
+        <label>Name <input id="crit-name" class="input" required></label>
+        <label>Evaluation prompt <textarea id="crit-prompt" class="input" rows="6" required></textarea></label>
+        <label>Pass threshold <span class="range-row"><input id="crit-threshold" type="range" min="1" max="10" value="7"><output id="crit-threshold-value">7</output>/10</span></label>
+        <label>On fail
+          <select id="crit-onfail" class="input">
+            <option value="block">Block traversal</option>
+            <option value="retry">Retry source node</option>
+            <option value="route">Route to another node</option>
+          </select>
+        </label>
+        <label id="crit-retry-row" hidden>Max retries <input id="crit-retrymax" class="input" type="number" min="1" max="5" value="2"></label>
+        <label id="crit-route-row" hidden>Route to <select id="crit-routeto" class="input"></select></label>
+        <label class="check"><input id="crit-save-template" type="checkbox"> Save as new template</label>
+        <div class="dialog-actions">
+          <button type="button" id="crit-cancel" class="btn">Cancel</button>
+          <button type="submit" id="crit-attach" class="btn btn-primary">Attach criteria</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="assist-dialog" aria-labelledby="assist-title">
+    <h2 id="assist-title">AI-assisted agent</h2>
+    <div id="assist-phase-describe" class="assist-phase">
+      <p class="dialog-sub">Describe what this agent should do. The assistant asks a few questions, then writes the configuration for you to review.</p>
+      <textarea id="assist-desc" class="input" rows="4" placeholder="e.g. Reviews a draft blog post and returns actionable feedback on structure and tone" aria-label="Agent description"></textarea>
+      <div class="dialog-actions">
+        <button type="button" id="assist-cancel-1" class="btn">Cancel</button>
+        <button type="button" id="assist-begin" class="btn btn-primary">Start</button>
+      </div>
+    </div>
+    <div id="assist-phase-interview" class="assist-phase" hidden>
+      <div id="assist-counter" class="assist-counter" role="status" aria-live="polite"></div>
+      <div id="assist-transcript" class="assist-transcript" aria-live="polite"></div>
+      <div id="assist-error" class="assist-error" hidden>
+        <span id="assist-error-text"></span>
+        <button type="button" id="assist-retry" class="btn">Try again</button>
+      </div>
+      <form id="assist-answer-form">
+        <input id="assist-answer" class="input" type="text" placeholder="Your answer…" autocomplete="off" aria-label="Answer">
+        <div class="dialog-actions">
+          <button type="button" id="assist-cancel-2" class="btn">Cancel</button>
+          <button type="button" id="assist-skip" class="btn">Skip question</button>
+          <button type="button" id="assist-generate" class="btn">Generate now</button>
+          <button type="submit" class="btn btn-primary">Answer</button>
+        </div>
+      </form>
+    </div>
+    <div id="assist-phase-preview" class="assist-phase" hidden>
+      <p class="dialog-sub">Review the generated configuration — edit anything before adding it to the canvas.</p>
+      <div id="assist-meta" class="assist-meta"></div>
+      <label>Name <input id="assist-name" class="input"></label>
+      <label>Model <select id="assist-model" class="input"></select></label>
+      <label>System prompt <textarea id="assist-prompt" class="input" rows="10"></textarea></label>
+      <label>Suggested tests <div id="assist-tests" class="assist-tests"></div></label>
+      <div class="dialog-actions">
+        <button type="button" id="assist-cancel-3" class="btn">Cancel</button>
+        <button type="button" id="assist-regenerate" class="btn">Regenerate</button>
+        <button type="button" id="assist-add" class="btn btn-primary">Add to canvas</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settings-dialog" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+    <form id="settings-form" method="dialog">
+      <label>Ollama endpoint <input id="set-endpoint" class="input"></label>
+      <label>Default model <select id="set-model" class="input"></select></label>
+      <label>Gate model <select id="set-gatemodel" class="input"></select></label>
+      <label>Assist model <select id="set-assistmodel" class="input"></select></label>
+      <label>Guided creation
+        <select id="set-guided" class="input">
+          <option value="always">Always — every new agent starts guided</option>
+          <option value="ask">Ask — choose each time</option>
+          <option value="never">Never — blank agents only</option>
+        </select>
+      </label>
+      <label>Agent definitions folder <input id="set-defs" class="input" spellcheck="false"></label>
+      <label>Max steps per run <input id="set-maxsteps" class="input" type="number" min="5" max="500"></label>
+      <label>Node timeout (ms) <input id="set-timeout" class="input" type="number" min="5000" step="5000"></label>
+      <label class="check"><input id="set-saveruns" type="checkbox"> Save run outputs as markdown</label>
+      <label>Run outputs folder <input id="set-savepath" class="input" spellcheck="false"></label>
+      <label class="check"><input id="set-fmt-json" type="checkbox"> Colour JSON in debug requests</label>
+      <label class="check"><input id="set-fmt-md" type="checkbox"> Render markdown in debug responses</label>
+      <div class="dialog-actions">
+        <button type="button" id="set-cancel" class="btn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="renderer/js/icons.js"></script>
+  <script src="renderer/js/state.js"></script>
+  <script src="renderer/js/canvas.js"></script>
+  <script src="renderer/js/inspector.js"></script>
+  <script src="renderer/js/dialogs.js"></script>
+  <script src="renderer/js/assist.js"></script>
+  <script src="renderer/js/run-panel.js"></script>
+  <script src="renderer/js/audit-panel.js"></script>
+  <script src="renderer/js/app.js"></script>
+</body>
+</html>
