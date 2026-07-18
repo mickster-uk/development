@@ -4,13 +4,7 @@ Electron app for building agent orchestrations visually. Draw a DAG of agents on
 
 ## Requirements
 
-- **Electron installed globally** — `npm start` runs `electron .` and there is no local Electron devDependency:
-
-  ```bash
-  npm install -g electron
-  ```
-
-- **Local dependencies** — the app depends on `marked` (markdown rendering for the debug panel) and, for tests, `jest`. Run `npm install` in the app folder before first use:
+- **Local dependencies** — `marked` (markdown rendering for the debug panel), plus dev dependencies `electron`, `electron-builder`, and `jest`. Run `npm install` in the app folder before first use:
 
   ```bash
   cd ~/Desktop/development/agentBase
@@ -34,6 +28,14 @@ npm test
 ```
 
 Unit tests live alongside the source (`lib/*.test.js`) and run with Jest, a declared devDependency.
+
+## Build and deploy
+
+```bash
+npm run build
+```
+
+Same pipeline as Knowbase: bumps the patch version, builds unsigned dmg + zip into `dist/` with electron-builder, copies the `.app` into `/Applications`, and symlinks it on the Desktop (first build only). Platform variants: `npm run build:mac`, `build:win`, `build:linux`.
 
 ## Using it
 

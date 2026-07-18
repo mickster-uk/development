@@ -1,10 +1,21 @@
 {
   "name": "agentbase",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Visual agent orchestration: build agent graphs with LLM-gated criteria edges, run them against Ollama, audit everything.",
   "main": "main.js",
   "scripts": {
     "start": "ELECTRON_RUN_AS_NODE= electron .",
+    "dev": "ELECTRON_RUN_AS_NODE= ELECTRON_ENABLE_LOGGING=1 electron .",
+    "prebuild": "npm version patch --no-git-tag-version",
+    "build": "electron-builder --publish never",
+    "postbuild": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && { test ! -e \"$HOME/Desktop/$APP_NAME\" && test ! -L \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\" || true; }",
+    "prebuild:mac": "npm version patch --no-git-tag-version",
+    "build:mac": "electron-builder --mac --publish never",
+    "postbuild:mac": "APP=$(find dist -name '*.app' -maxdepth 3 -print -quit) && APP_NAME=$(basename \"$APP\") && rm -rf \"/Applications/$APP_NAME\" && cp -r \"$APP\" \"/Applications/$APP_NAME\" && { test ! -e \"$HOME/Desktop/$APP_NAME\" && test ! -L \"$HOME/Desktop/$APP_NAME\" && ln -s \"/Applications/$APP_NAME\" \"$HOME/Desktop/$APP_NAME\" || true; }",
+    "prebuild:win": "npm version patch --no-git-tag-version",
+    "build:win": "electron-builder --win --publish never",
+    "prebuild:linux": "npm version patch --no-git-tag-version",
+    "build:linux": "electron-builder --linux --publish never",
     "test": "jest"
   },
   "jest": {
@@ -14,10 +25,52 @@
     ]
   },
   "devDependencies": {
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "jest": "^30.4.2"
   },
   "license": "MIT",
   "dependencies": {
     "marked": "^18.0.6"
+  },
+  "build": {
+    "appId": "com.agentbase.app",
+    "productName": "agentBase",
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "lib/**/*",
+      "renderer/**/*",
+      "assets/**/*",
+      "node_modules/**/*"
+    ],
+    "directories": {
+      "buildResources": "assets"
+    },
+    "mac": {
+      "icon": "assets/icon.icns",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    }
+  },
+  "allowScripts": {
+    "electron@43.1.1": true
   }
 }
