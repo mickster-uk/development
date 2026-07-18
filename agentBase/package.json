@@ -1,6 +1,6 @@
 {
   "name": "agentbase",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Visual agent orchestration: build agent graphs with LLM-gated criteria edges, run them against Ollama, audit everything.",
   "main": "main.js",
   "scripts": {
