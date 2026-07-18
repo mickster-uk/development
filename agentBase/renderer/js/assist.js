@@ -167,6 +167,7 @@ window.ABAssist = (() => {
       document.getElementById('assist-name').focus();
     } else if (turn.type === 'error') {
       errorBox.hidden = false;
+      document.getElementById('assist-retry').hidden = turn.retryable === false;
       document.getElementById('assist-error-text').textContent = turn.transport
         ? `${turn.error} Start Ollama, then try again.`
         : turn.error;

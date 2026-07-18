@@ -9,6 +9,7 @@ window.ABRun = (() => {
   let tokenBuffers = new Map();
   let statusEl, runBtn, listEl, detailEl;
   let fmt = { json: true, md: true };
+  let collapsedSections = new Set();
 
   function init() {
     statusEl = document.getElementById('run-status');
@@ -206,11 +207,16 @@ window.ABRun = (() => {
   }
 
   function addSection(title, content, mode) {
-    const section = document.createElement('div');
+    const section = document.createElement('details');
     section.className = 'detail-section';
-    const h = document.createElement('h4');
-    h.textContent = title;
-    section.appendChild(h);
+    section.open = !collapsedSections.has(title);
+    const summary = document.createElement('summary');
+    summary.textContent = title;
+    section.appendChild(summary);
+    section.addEventListener('toggle', () => {
+      if (section.open) collapsedSections.delete(title);
+      else collapsedSections.add(title);
+    });
     if (mode === 'json') {
       const pre = document.createElement('pre');
       pre.innerHTML = colourJson(content);

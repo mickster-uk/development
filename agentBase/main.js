@@ -247,6 +247,10 @@ ipcMain.handle('interview:start', async (_, description) => {
   const cfg = loadConfig();
   let models = [];
   try { models = await listModels(cfg.endpoint); } catch { }
+  const model = cfg.assistModel || cfg.defaultModel;
+  if (models.length && !models.includes(model)) {
+    return ok({ turn: { type: 'error', error: `Model "${model}" is not installed in Ollama. Pick an installed default or assist model in Settings.`, retryable: false } });
+  }
   const turn = await interviewer.start(description, {
     endpoint: cfg.endpoint,
     model: cfg.assistModel || cfg.defaultModel,
