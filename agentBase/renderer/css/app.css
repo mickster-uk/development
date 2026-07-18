@@ -101,6 +101,14 @@ body {
 .dirty-dot { color: var(--warn); font-size: 10px; }
 .run-status { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
 .zoom-level { color: var(--text-faint); font-size: 12px; width: 40px; text-align: right; }
+.version-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
 
 .btn {
   font: inherit;

@@ -224,6 +224,9 @@
     if (cfg.theme === 'light') document.documentElement.dataset.theme = 'light';
     window.ABRun.setFormatting(cfg);
 
+    const verRes = await window.agentbase.getVersion();
+    if (verRes.success) document.getElementById('version-badge').textContent = `v${verRes.version}`;
+
     const modelsRes = await window.agentbase.listModels();
     if (modelsRes.success) {
       window.ABInspector.setModels(modelsRes.models);
