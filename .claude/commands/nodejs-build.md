@@ -35,6 +35,6 @@ Use the **globally installed Node.js** at `/opt/homebrew/bin/node` (version tabl
 
 5. **Follow-up agents.** In parallel: `validator` (code mode), `architect` (documentation mode — the API map is required), `documenter`, and `test-data` (fixtures should include malformed request payloads). When test-data reports its paths, dispatch `tester` with them; for HTTP apps the tester also runs k6 performance tests.
 
-6. **Fix and retest.** If the tester or validator report failures: the main session fixes, then re-dispatches the tester with the same fixtures. Repeat until green or genuinely blocked — never ship on a red run, and never weaken a test to get green.
+6. **Fix and retest.** If the tester or validator report failures: the main session fixes, then resumes the same tester (it keeps its context and fixtures). Repeat until green or genuinely blocked — never ship on a red run, and never weaken a test to get green.
 
 7. **Report and persist.** One summary: research recommendation, endpoints built, validator/test/k6 results (including failures), doc locations. Save each agent's report to `../runs/{YYYY-MM-DD}-{agent}.md` for the improvement loop.

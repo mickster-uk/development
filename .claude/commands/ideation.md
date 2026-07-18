@@ -2,7 +2,7 @@ Adopt the protocol below for: $ARGUMENTS
 
 # Ideation Protocol
 
-Turns "what should I build next?" into researched, decision-ready proposals. A protocol the main session adopts; it pairs the idea-generator with the researcher, because agents cannot invoke each other.
+Turns "what should I build next?" into researched, decision-ready proposals. A protocol the main session adopts; it pairs the idea-generator with the researcher — the session sequences them, keeping the hierarchy flat by policy.
 
 ## Steps
 
@@ -16,7 +16,7 @@ Turns "what should I build next?" into researched, decision-ready proposals. A p
 
 5. **Dossier.** Combine per idea: benefit → look & feel → how it works → researcher's recommendation and risks → effort. One page each, decision-ready.
 
-6. **Route.** Ideas Mike approves flow into the matching build protocol — electron-build or nodejs-build — starting at its interview step.
+6. **Route.** Ideas Mike approves flow into the matching build protocol — [electron-build.md](electron-build.md) or [nodejs-build.md](nodejs-build.md) — starting at its interview step.
 
 ## Notes
 
