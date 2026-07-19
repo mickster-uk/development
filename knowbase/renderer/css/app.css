@@ -72,6 +72,12 @@ html, body {
   position: relative;
 }
 
+body.window-mode .app-shell { border-radius: 0; box-shadow: none; }
+body.window-mode.darwin .titlebar { -webkit-app-region: drag; padding-left: 78px; }
+body.window-mode.darwin .titlebar button,
+body.window-mode.darwin .titlebar input,
+body.window-mode.darwin .tb-btn { -webkit-app-region: no-drag; }
+
 /* macOS vibrancy – semi-transparent backgrounds let the blur show through */
 @media not all { /* applies on macOS at runtime via class */
   .platform-macos .app-shell {

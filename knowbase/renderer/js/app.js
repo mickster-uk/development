@@ -67,6 +67,7 @@ const el = {
   edgeResize:     $('edge-resize'),
   tbVersion:      $('tb-version'),
   btnDisplay:     $('btn-display'),
+  btnWindowMode:  $('btn-window-mode'),
   btnVoiceSettings: $('btn-voice-settings'),
   btnDictate:     $('btn-dictate'),
   btnSpeak:       $('btn-speak'),
@@ -1367,10 +1368,29 @@ function setupKeyboard() {
   });
 }
 
+// ─── Window mode ─────────────────────────────────────────────────────────────
+function applyWindowMode(mode) {
+  const isWin = mode === 'window';
+  document.body.classList.toggle('window-mode', isWin);
+  el.btnCollapse.style.display = isWin ? 'none' : '';
+  el.edgeResize.style.display  = isWin ? 'none' : '';
+  $('icon-mode-window').style.display = isWin ? 'none' : '';
+  $('icon-mode-panel').style.display  = isWin ? '' : 'none';
+  el.btnWindowMode.title = isWin ? 'Dock as side panel' : 'Detach as free window';
+}
+
+async function toggleWindowMode() {
+  const cur = await api.getWindowMode();
+  api.setWindowMode(cur === 'window' ? 'panel' : 'window');
+}
+
 // ─── Bind events ─────────────────────────────────────────────────────────────
 function bindEvents() {
+  api.getPlatform().then(p => document.body.classList.toggle('darwin', p === 'darwin'));
+  api.getWindowMode().then(m => applyWindowMode(m));
   $('titlebar').addEventListener('dblclick', () => api.zoomWindow());
   el.btnSidebarToggle.addEventListener('click', toggleSidebar);
+  el.btnWindowMode.addEventListener('click', () => toggleWindowMode());
   el.btnDisplay.addEventListener('click', () => showDisplayPicker(el.btnDisplay));
   el.btnVoiceSettings.addEventListener('click', () => showVoiceSettingsPopover(el.btnVoiceSettings));
   el.btnTheme.addEventListener('click', toggleTheme);

@@ -152,6 +152,10 @@ contextBridge.exposeInMainWorld('api', {
   getDisplays:    ()    => ipcRenderer.invoke('get-displays'),
   dockToDisplay:  (id)  => ipcRenderer.invoke('dock-to-display', id),
 
+  // Window mode (docked panel vs free window)
+  getWindowMode:  ()     => ipcRenderer.invoke('get-window-mode'),
+  setWindowMode:  (mode) => ipcRenderer.invoke('set-window-mode', mode),
+
   // External
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   getPlatform:  ()    => ipcRenderer.invoke('get-platform'),

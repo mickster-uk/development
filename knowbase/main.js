@@ -54,6 +54,8 @@ let isTabMode         = false;  // collapsed to thin strip
 let isQuitting        = false;
 let configCache       = null;
 let activeDisplayId   = null;   // null = always use primary
+let windowMode        = 'window';  // 'panel' = docked right edge, 'window' = free OS window
+let boundsSaveTimer   = null;
 
 // ─── Window helpers ───────────────────────────────────────────────────────────
 function getWorkArea() {
@@ -64,39 +66,88 @@ function getWorkArea() {
   return screen.getPrimaryDisplay().workArea;
 }
 
+function validWindowBounds(b) {
+  if (!b || !b.width || !b.height) return null;
+  const visible = screen.getAllDisplays().some(d => {
+    const ix = Math.min(b.x + b.width, d.workArea.x + d.workArea.width) - Math.max(b.x, d.workArea.x);
+    const iy = Math.min(b.y + b.height, d.workArea.y + d.workArea.height) - Math.max(b.y, d.workArea.y);
+    return ix >= 100 && iy >= 40;
+  });
+  return visible ? b : null;
+}
+
 async function createWindow() {
+  const cfg = loadConfig();
+  windowMode = cfg.windowMode === 'panel' ? 'panel' : 'window';
   const wa = getWorkArea();
 
-  const winOpts = {
-    width:           CFG.PANEL_WIDTH,
-    height:          wa.height,
-    x:               wa.x + wa.width - CFG.PANEL_WIDTH,
-    y:               wa.y,
-    frame:           false,
-    transparent:     true,
-    backgroundColor: '#00000000',
-    hasShadow:       true,
-    icon:            path.join(__dirname, 'assets', 'icons', 'icon-512.png'),
-    resizable:       true,
-    movable:         false,   // stays at the right edge
-    alwaysOnTop:     false,
-    skipTaskbar:     false,
-    webPreferences: {
-      nodeIntegration:  false,
-      contextIsolation: true,
-      sandbox:          false,
-      preload:          path.join(__dirname, 'preload.js')
-    }
+  const webPreferences = {
+    nodeIntegration:  false,
+    contextIsolation: true,
+    sandbox:          false,
+    preload:          path.join(__dirname, 'preload.js')
   };
 
-  // macOS frosted-glass vibrancy
-  if (process.platform === 'darwin') {
-    winOpts.vibrancy = 'under-window';
-    winOpts.visualEffectState = 'active';
+  let winOpts;
+  if (windowMode === 'window') {
+    const b = validWindowBounds(cfg.windowBounds) || {
+      width:  Math.min(1100, wa.width),
+      height: Math.min(800, wa.height),
+      x:      wa.x + Math.round((wa.width - Math.min(1100, wa.width)) / 2),
+      y:      wa.y + Math.round((wa.height - Math.min(800, wa.height)) / 2)
+    };
+    winOpts = {
+      ...b,
+      hasShadow:       true,
+      icon:            path.join(__dirname, 'assets', 'icons', 'icon-512.png'),
+      resizable:       true,
+      movable:         true,
+      alwaysOnTop:     false,
+      skipTaskbar:     false,
+      webPreferences
+    };
+    if (process.platform === 'darwin') {
+      winOpts.titleBarStyle = 'hiddenInset';
+      winOpts.vibrancy = 'under-window';
+      winOpts.visualEffectState = 'active';
+    }
+  } else {
+    winOpts = {
+      width:           CFG.PANEL_WIDTH,
+      height:          wa.height,
+      x:               wa.x + wa.width - CFG.PANEL_WIDTH,
+      y:               wa.y,
+      frame:           false,
+      transparent:     true,
+      backgroundColor: '#00000000',
+      hasShadow:       true,
+      icon:            path.join(__dirname, 'assets', 'icons', 'icon-512.png'),
+      resizable:       true,
+      movable:         false,   // stays at the right edge
+      alwaysOnTop:     false,
+      skipTaskbar:     false,
+      webPreferences
+    };
+    if (process.platform === 'darwin') {
+      winOpts.vibrancy = 'under-window';
+      winOpts.visualEffectState = 'active';
+    }
   }
 
   mainWindow = new BrowserWindow(winOpts);
   mainWindow.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+
+  if (windowMode === 'window') {
+    const saveBounds = () => {
+      if (!mainWindow || mainWindow.isDestroyed() || mainWindow.isMaximized() || mainWindow.isFullScreen()) return;
+      clearTimeout(boundsSaveTimer);
+      boundsSaveTimer = setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) saveConfig({ windowBounds: mainWindow.getBounds() });
+      }, 500);
+    };
+    mainWindow.on('moved', () => saveBounds());
+    mainWindow.on('resized', () => saveBounds());
+  }
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
@@ -106,7 +157,8 @@ async function createWindow() {
     }
   });
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  const win = mainWindow;
+  mainWindow.on('closed', () => { if (mainWindow === win) mainWindow = null; });
 
   // Restore last open folder on ready
   mainWindow.webContents.on('did-finish-load', () => {
@@ -121,23 +173,31 @@ async function createWindow() {
 function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
 
 function animateX(fromX, toX, duration, onDone) {
+  const win = mainWindow;
   const startTime = Date.now();
   function tick() {
+    if (win !== mainWindow || win.isDestroyed()) { isAnimating = false; return; }
     const elapsed  = Date.now() - startTime;
     const progress = Math.min(elapsed / duration, 1);
     const eased    = easeOutCubic(progress);
     const x        = Math.round(fromX + (toX - fromX) * eased);
     try {
-      const [, y] = mainWindow.getPosition();
-      mainWindow.setPosition(x, y);
-    } catch (_) { return; }
+      const [, y] = win.getPosition();
+      win.setPosition(x, y);
+    } catch (_) { isAnimating = false; return; }
     if (progress < 1) setTimeout(tick, 8);
-    else { mainWindow.setPosition(toX, mainWindow.getPosition()[1]); onDone(); }
+    else { win.setPosition(toX, win.getPosition()[1]); onDone(); }
   }
   tick();
 }
 
 function slideIn() {
+  if (windowMode === 'window') {
+    mainWindow.show();
+    mainWindow.focus();
+    isPanelOpen = true;
+    return;
+  }
   if (isAnimating) return;
   isAnimating = true;
   const wa        = getWorkArea();
@@ -155,6 +215,11 @@ function slideIn() {
 }
 
 function slideOut() {
+  if (windowMode === 'window') {
+    mainWindow.hide();
+    isPanelOpen = false;
+    return;
+  }
   if (isAnimating) return;
   isAnimating = true;
   const wa      = getWorkArea();
@@ -392,6 +457,7 @@ ipcMain.handle('quit-app',      ()          => {
 });
 
 ipcMain.handle('collapse-to-tab', () => {
+  if (windowMode === 'window') return { success: false };
   if (isTabMode) return;
   isTabMode = true;
   const wa = getWorkArea();
@@ -401,6 +467,7 @@ ipcMain.handle('collapse-to-tab', () => {
 });
 
 ipcMain.handle('expand-from-tab', () => {
+  if (windowMode === 'window') return { success: false };
   if (!isTabMode) return;
   isTabMode = false;
   const wa  = getWorkArea();
@@ -428,12 +495,39 @@ ipcMain.handle('dock-to-display', (_, displayId) => {
   const target  = all.find(d => d.id === displayId) || screen.getPrimaryDisplay();
   activeDisplayId = target.id;
   const wa      = target.workArea;
-  const [w]     = mainWindow.getSize();
-  mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
+  if (windowMode === 'window') {
+    if (mainWindow.isFullScreen()) mainWindow.setFullScreen(false);
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    const [w0, h0] = mainWindow.getSize();
+    const w = Math.min(w0, wa.width);
+    const h = Math.min(h0, wa.height);
+    mainWindow.setBounds({ x: wa.x + Math.round((wa.width - w) / 2), y: wa.y + Math.round((wa.height - h) / 2), width: w, height: h });
+  } else {
+    const [w] = mainWindow.getSize();
+    mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
+  }
   if (!isPanelOpen) { mainWindow.show(); isPanelOpen = true; }
   mainWindow.focus();
   saveConfig({ activeDisplayId: activeDisplayId });
   return { success: true };
+});
+
+ipcMain.handle('get-window-mode', () => windowMode);
+
+ipcMain.handle('set-window-mode', async (_, mode) => {
+  if (mode !== 'panel' && mode !== 'window') return { success: false };
+  if (mode === windowMode) return { success: true, mode };
+  if (windowMode === 'window' && mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMaximized() && !mainWindow.isFullScreen()) {
+    saveConfig({ windowBounds: mainWindow.getBounds() });
+  }
+  clearTimeout(boundsSaveTimer);
+  saveConfig({ windowMode: mode });
+  const old = mainWindow;
+  await createWindow();
+  old?.destroy();
+  isPanelOpen = true;
+  isTabMode   = false;
+  return { success: true, mode };
 });
 
 ipcMain.handle('open-external', (_, url)    => { shell.openExternal(url); });
@@ -451,8 +545,9 @@ ipcMain.on('zoom-window', () => {
   else mainWindow.maximize();
 });
 
-// Custom resize: renderer sends desired pixel width
+// Custom resize: renderer sends desired pixel width (docked panel only)
 ipcMain.on('resize-window', (_, newWidth) => {
+  if (windowMode === 'window') return;
   const clamped = Math.max(CFG.MIN_WIDTH, Math.min(CFG.MAX_WIDTH, newWidth));
   const wa      = getWorkArea();
   const [, h]   = mainWindow.getSize();
@@ -507,7 +602,7 @@ app.whenReady().then(async () => {
     const exists = screen.getAllDisplays().some(d => d.id === cfg.activeDisplayId);
     if (exists) activeDisplayId = cfg.activeDisplayId;
   }
-  if (cfg.panelWidth) {
+  if (windowMode === 'panel' && cfg.panelWidth) {
     const wa = getWorkArea();
     const w  = Math.max(CFG.MIN_WIDTH, Math.min(CFG.MAX_WIDTH, cfg.panelWidth));
     mainWindow.setBounds({ x: wa.x + wa.width - w, y: wa.y, width: w, height: wa.height });
@@ -584,7 +679,7 @@ app.on('activate', () => {
 // Reposition when screen geometry changes (must be after app ready)
 app.whenReady().then(() => {
   screen.on('display-metrics-changed', () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (!mainWindow || mainWindow.isDestroyed() || windowMode === 'window') return;
     const wa = getWorkArea();
     if (isTabMode) {
       mainWindow.setBounds({ x: wa.x + wa.width - CFG.TAB_WIDTH, y: wa.y, width: CFG.TAB_WIDTH, height: wa.height });

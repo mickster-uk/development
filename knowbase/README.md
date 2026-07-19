@@ -13,6 +13,7 @@ A polished Electron side-panel app for reading and editing Markdown files. Slide
 | **Syntax highlighting** | 190+ languages via highlight.js |
 | **Dark & Light mode** | Follows system preference; toggle in the title bar |
 | **macOS vibrancy** | Frosted-glass blur effect on macOS |
+| **Window / Panel mode** | Toggle between a normal OS window and a docked side panel via the toolbar button |
 | **Resizable panel** | Drag any edge or corner; double-click the title bar to zoom |
 | **Resizable sidebar** | Drag the divider between sidebar and content |
 | **Pin on top** | Keep the panel above other windows |
@@ -45,6 +46,19 @@ npm start
 | `⌘N` / `Ctrl+N` | New file in the current folder |
 | `⌘E` / `Ctrl+E` | Toggle edit / preview mode |
 | `⌘S` / `Ctrl+S` | Save the current file |
+
+## Window modes
+
+Knowbase has two window modes, toggled with the two-pane icon in the title bar (next to the screen-switch button).
+
+| Mode | Behaviour |
+|---|---|
+| **Window** (default) | A normal OS window — movable, resizable, native traffic lights on macOS (`hiddenInset`, supports fullscreen/tiling) or the standard frame on Windows (supports Snap). The title bar is a drag region. Bounds (position and size) are remembered across restarts. The collapse-to-tab button and left-edge drag-resizer are hidden. |
+| **Panel** | The original behaviour — a frameless, frosted panel docked to the right edge of the screen, with collapse-to-tab, edge drag-resize, and a slide in/out animation. |
+
+**Existing installs default to Window mode on their next launch** — this is a change from the previous panel-only behaviour. Switch back to Panel mode at any time via the toolbar button; the choice is saved and persists across restarts.
+
+Sending the app to a different screen (the display-picker button) works in both modes: in Panel mode it docks to the target display's right edge as before; in Window mode it moves the window to the centre of the target display, keeping its current size.
 
 ## Reading List import
 
