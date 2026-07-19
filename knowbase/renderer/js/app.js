@@ -833,11 +833,29 @@ function updateCtBar() {
 // ─── Mermaid ──────────────────────────────────────────────────────────────────
 function initMermaid() {
   if (typeof mermaid === 'undefined') return;
+  const dark = state.isDark;
   mermaid.initialize({
     startOnLoad:   false,
-    theme:         state.isDark ? 'dark' : 'default',
+    theme:         'base',
+    layout:        'elk',
     securityLevel: 'loose',
     fontFamily:    '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
+    themeVariables: {
+      darkMode:           dark,
+      primaryColor:       dark ? '#2b2f3a' : '#eef2ff',
+      primaryTextColor:   dark ? '#e6e6e6' : '#1a1a1a',
+      primaryBorderColor: dark ? '#5865f2' : '#6366f1',
+      secondaryColor:     dark ? '#232733' : '#f1f5f9',
+      tertiaryColor:      dark ? '#1c202a' : '#f8fafc',
+      lineColor:          dark ? '#8891a8' : '#94a3b8',
+      background:         dark ? '#1e1e1e' : '#ffffff',
+      mainBkg:            dark ? '#2b2f3a' : '#eef2ff',
+      fontSize:           '15px',
+    },
+    themeCSS: `
+      .node rect, .node polygon, .node circle { rx: 8px; ry: 8px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.15)); }
+      .edgeLabel { background-color: transparent; }
+    `,
   });
 }
 

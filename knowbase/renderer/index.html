@@ -280,6 +280,10 @@
 
 </div>
 <script src="../node_modules/mermaid/dist/mermaid.min.js"></script>
+<script type="module">
+  import elkLayouts from '../node_modules/@mermaid-js/layout-elk/dist/mermaid-layout-elk.esm.min.mjs';
+  mermaid.registerLayoutLoaders(elkLayouts);
+</script>
 <script src="../lib/strip-markdown.js"></script>
 <script src="js/app.js"></script>
 </body>

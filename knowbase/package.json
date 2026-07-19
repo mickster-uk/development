@@ -1,6 +1,6 @@
 {
   "name": "knowbase",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "A side-panel knowledge base and markdown reader built with Electron",
   "main": "main.js",
   "scripts": {
@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "@elevenlabs/elevenlabs-js": "^2.56.0",
+    "@mermaid-js/layout-elk": "^0.2.2",
     "highlight.js": "^11.11.1",
     "marked": "^18.0.5",
     "mermaid": "^11.16.0"
