@@ -128,6 +128,8 @@ Mik3Bot/persgh_ed25519.pub
 .DS_Store
 Mike3Bot/node_modules
 BotTester/node_modules
+agentBase/tests/functional/report/
+agentBase/test-results/
 
 
 
