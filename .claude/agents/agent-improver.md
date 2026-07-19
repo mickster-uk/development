@@ -2,6 +2,7 @@
 name: agent-improver
 description: Use to audit an agent's output against its definition and prepare guided improvements. Returns findings, proposed definition edits, and a ready-to-run interview for Mike. Read-only — the main session runs the interview and applies only the edits Mike's answers support.
 tools: Read, Grep, Glob, WebSearch, WebFetch
+model: sonnet
 maxTurns: 40
 memory: project
 ---

@@ -1,6 +1,6 @@
 ---
 name: validator
-description: Use in code mode after non-trivial code is written (security, style, correctness), or in reasoning mode when a complex bug diagnosis or architectural choice needs independent assessment. Reasoning briefs must be blind — the problem, never the conclusion. Read-only; reports findings, changes nothing.
+description: Use in code mode after Significant-tier work (new app, new dependency, IPC/structural change, cross-app work) — not routine small changes — or in reasoning mode when a complex bug diagnosis or architectural choice needs independent assessment. Reasoning briefs must be blind — the problem, never the conclusion. Read-only; reports findings, changes nothing.
 tools: Read, Grep, Glob, WebSearch, WebFetch
 maxTurns: 40
 ---

@@ -2,6 +2,7 @@
 name: architect
 description: Use before building a significant feature (design mode) and after significant changes (documentation mode). Designs component/IPC structure and owns the architecture.md files in Knowbase, including all Mermaid diagrams. Never edits app source code.
 tools: Read, Grep, Glob, Write, Edit, WebSearch
+model: sonnet
 maxTurns: 40
 ---
 

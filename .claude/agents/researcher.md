@@ -2,6 +2,7 @@
 name: researcher
 description: Use BEFORE implementing any non-trivial task, choosing a library, or picking an approach. Surveys current approaches against established industry best practice and recommends one with explicit reasoning. Read-only — it never writes code or files.
 tools: WebSearch, WebFetch, Read, Grep, Glob
+model: sonnet
 maxTurns: 40
 ---
 

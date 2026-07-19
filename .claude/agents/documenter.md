@@ -2,7 +2,7 @@
 name: documenter
 description: Use after building or significantly changing an app. Updates the app's README.md and related Knowbase docs to reflect current behaviour. Does not touch architecture.md — the architect owns that.
 tools: Read, Grep, Glob, Write, Edit
-model: sonnet
+model: haiku
 maxTurns: 30
 ---
 
