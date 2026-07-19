@@ -12,7 +12,7 @@
     "test:ci": "jest --testPathPatterns=src/ --ci --json --outputFile=../../../Documents/knowbase/apps/mik3bot/tests/unit/results.json"
   },
   "dependencies": {
-    "@elevenlabs/elevenlabs-js": "^2.56.0",
+    "@elevenlabs/elevenlabs-js": "2.56.0",
     "axios": "^1.18.1"
   },
   "devDependencies": {
